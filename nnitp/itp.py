@@ -150,7 +150,7 @@ class is_max(Predicate):
     def cone(self,shape:Tuple[int,...]):
         res = tuple(slice(0,x) for x in  shape)
         return res
-            
+
 class LayerPredicate(object):
     layer : int
     pred : Predicate

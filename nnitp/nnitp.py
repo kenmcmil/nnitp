@@ -1,7 +1,7 @@
 #
 # Copyright (c) Microsoft Corporation.
 #
-
+import torch
 import numpy as np
 from threading import Thread
 from traits.api import HasTraits,String,Enum,Instance,Int,Button,Float,Bool
@@ -59,16 +59,16 @@ class InterpolantThread(Thread):
     
     def run(self):
         self.top.message('Computing interpolant...\n')
-        with self.spec.data_model.session():
-            spec = self.spec
-            input = spec.state.input.reshape(1,*spec.state.input.shape)
-            itp,stats = interpolant(self.spec.data_model,spec.layer,
-                                             input,spec.state.conc,**spec.kwargs)
-            self.top.message('Interpolant: {}\n'.format(itp))
-            self.top.message(str(stats))
-            self.spec.state.itp = itp
-            self.spec.state.stats = stats
-            self.top.push_state(self.spec.state)
+        #with self.spec.data_model.session():
+        spec = self.spec
+        input = spec.state.input.reshape(1,*spec.state.input.shape)
+        itp,stats = interpolant(self.spec.data_model,spec.layer,
+                                         input,spec.state.conc,**spec.kwargs)
+        self.top.message('Interpolant: {}\n'.format(itp))
+        self.top.message(str(stats))
+        self.spec.state.itp = itp
+        self.spec.state.stats = stats
+        self.top.push_state(self.spec.state)
 
     def __init__(self,top:'MainWindow',spec:InterpolantSpec):
         super(InterpolantThread, self).__init__()
@@ -100,7 +100,6 @@ class TextDisplay(HasTraits):
 # 'none`.
 
 class Model(HasTraits):
-
     top : 'MainWindow'  # reference to the main window
 
     # Combo box for model name
@@ -123,7 +122,7 @@ class Model(HasTraits):
 
     data_model : DataModel = Instance(DataModel)
     worker_thread = Instance(Thread)
-    _tf_session = None
+    #_tf_session = None
     _param_names : List[str] = ['alpha','gamma','mu','size','ensemble_size']
 
     
@@ -259,6 +258,7 @@ class InitState(State):
         category = self.top.category
         if self._displayed_category != category:
             self.conc = output_category_predicate(self.top.model.data_model,category)
+            #with self.top.model.data_model.session():
             self.compset = self.conc.sat(self.top.model.model_eval())
             self._displayed_category = category
 
@@ -289,10 +289,10 @@ class InitState(State):
                 new_state.conc = self.conc
                 new_state.category_pred = self.conc
                 self.top.push_state(new_state)
-                
+
     def on_axes_enter(self,event):
         pass
-    
+
 # A NormalState consists of the following elements:
 #
 # - An input valuation (the premise)
@@ -336,14 +336,14 @@ class NormalState(State):
         imgs = list(top_row)
         concs = [self.conc]
         cones = []
-        with self.top.model.data_model.session():
-            if self.itp is not None:
-                conjs = self.itp.conjs()
-                for conj in conjs:
-                    cone = self.top.model.pred_cone(conj)
-                    imgs.extend(im[cone] for im in top_row)
-                    cones.append(cone)
-                concs.extend(conjs)
+        #with self.top.model.data_model.session():
+        if self.itp is not None:
+            conjs = self.itp.conjs()
+            for conj in conjs:
+                cone = self.top.model.pred_cone(conj)
+                imgs.extend(im[cone] for im in top_row)
+                cones.append(cone)
+            concs.extend(conjs)
         imgs = prepare_images(imgs) 
         rows = len(imgs) // cols
         for idx,img in enumerate(imgs): 
@@ -442,7 +442,9 @@ class NormalState(State):
 #
 
 class MainWindow(HasTraits):
+    #print(datasets.keys())
     display = Instance(TextDisplay(), ())
+    #print(list(datasets))
     model = Instance(Model)
     figure = Instance(Figure,())
     layers = t.List(editor=SetEditor(name='avail'))
@@ -485,7 +487,7 @@ class MainWindow(HasTraits):
             self._states[-1].render(self.figure)
             self.figure.canvas.mpl_connect('button_press_event', self.onclick)
             self.figure.canvas.mpl_connect('axes_enter_event', self.on_axes_enter)
-                
+
     def model_loaded(self):
         state = InitState()
         self.model._data_model_changed()  # update the interpolation parameters
@@ -496,7 +498,7 @@ class MainWindow(HasTraits):
         self.layers = list_elems(self.avail,[i+1 for i in layer_idxs])
         self.message('Select layers for explanations, then choose an input image in the images tab.\n')
         self.push_state(state)
-        
+
     def push_state(self,state:State):
         self._states.append(state)
         self.update()
@@ -530,11 +532,18 @@ def list_elems(l1,l2):
     return [l1[i] for i in l2 if i >= 0 and i < len(l1)]
 
 def main():
+    #print("test")
+    #import_models()
+    #print("test1")
+    #print(datasets.keys())
     if len(sys.argv) > 1:
         verb = sys.argv[1]
         if verb == 'compress':
             from .compress import main as compress_main
             return compress_main()
+    #print(datasets.keys())
+    #print(list(datasets))
+    #print("test")
     MainWindow().configure_traits()
         
 # Display the main window

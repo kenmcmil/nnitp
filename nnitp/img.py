@@ -15,9 +15,13 @@ def prepare_images(imgs):
     iptp = imax - imin
     def to_gray(img):
         shp = img.shape
-        if shp[2] == 1:
-            img = img.reshape(shp[0],shp[1])
+        if shp[0] == 1:
+            img = img.reshape(shp[1],shp[2])
             img = np.stack((img,)*3, axis=-1)
+        elif shp[0] == 3:
+            #print(shp)
+            img = img.transpose(2,1,0).transpose(1,0,2)
+            #print(img.shape)
         return img
     def normalize(img):
         if iptp != 0:
