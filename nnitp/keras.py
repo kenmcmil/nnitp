@@ -5,13 +5,17 @@
 #
 # Keras backend for nnitp
 #
-
+import tensorflow as tf
 from tensorflow.compat.v1.keras import backend as K
 from tensorflow.compat.v1.keras.layers import Conv2D, Flatten, MaxPooling2D, Dense
+#from tensorflow.python.keras.backend import eager_learning_phase_scope
 from typing import Tuple
 from .model_mgr import unflatten_unit
 
 # This class is the interface to Keras models.
+
+
+tf.compat.v1.disable_eager_execution()
 
 class Wrapper(object):
 
