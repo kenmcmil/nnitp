@@ -2,7 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 #
 
-from .model_mgr import unflatten_unit, ModelEval, DataModel
+from .model_mgr import  ModelEval, DataModel
+from .utils import unflatten_unit
 import numpy as np
 import math
 from .itp import itp_pred, bound, LayerPredicate

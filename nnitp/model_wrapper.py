@@ -11,12 +11,31 @@
 import torch
 import torch.nn as nn
 from typing import Tuple
-from .model_mgr import unflatten_unit
+from .utils import unflatten_unit
 from nnitp.models.models import Flatten
 
 # This class is the interface to torch models.
+def sample_dataset(data, size):
+    size = min(len(data), size)
+    data = torch.utils.data.Subset(data, range(size))
+    return data
 
 
+
+# Computes the activation of layer `lidx` in model `model` over input
+# data `test`. Layer index `-1` stands for the input data.
+#
+
+def compute_activation(model,lidx,test, use_loader = False):
+    if use_loader:
+        ret = []
+        data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 5, pin_memory = True)
+        for i, (inp, target) in enumerate(data_loader):
+            ret.append(model.compute_activation(lidx, inp))
+        ret = torch.cat(ret)
+    else:
+        ret = model.compute_activation(lidx, test)
+    return ret.cpu().numpy()
 
 #get all layer and its name from model
 
@@ -37,10 +56,11 @@ def get_layers(model, layers, layers_name):
 
 class Wrapper(object):
 
-    # Constructor from a Keras model.
+    # Constructor from a torch model.
 
     def __init__(self,model, inp_shape):
-        self.model = model
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = model.to(self.device)
         self.model.eval()
         #self._backend_session = K.get_session()
 
@@ -60,7 +80,7 @@ class Wrapper(object):
         for i,l in enumerate(self._layers):
             #self.fhooks.append(l.register_forward_hook(self.forward_hook(i)))
             self.shape_hooks.append(l.register_forward_hook(self.shape_hook(i)))
-        x = torch.randn(self.inp_shape)
+        x = torch.randn(self.inp_shape).to(self.device)
         with torch.no_grad():
           self.model(x)
         for hook in self.shape_hooks:
@@ -97,6 +117,7 @@ class Wrapper(object):
         self.model.eval()
         if not torch.is_tensor(test):
             test = torch.tensor(test)
+        test = test.to(self.device)
         if lidx < 0:
             return test
         l = self.get_layer(lidx)
@@ -140,12 +161,18 @@ class Wrapper(object):
     # TODO: change the `slc` argument to a list of python slice objects.
 
     def get_cone(self,n,n1,slc) -> Tuple:
+        #print("----------start-----------")
         model = self.model
         while n1 > n:
             layer = self.get_layer(n1)
             layer_inp = self.layer_shape(n1-1)
             layer_out = self.layer_shape(n1)
             if isinstance(layer,nn.Conv2d) or isinstance(layer, nn.MaxPool2d):
+                #if isinstance(layer, nn.Conv2d):
+                #    print("conv")
+                #if isinstance(layer, nn.MaxPool2d):
+                #    print("maxpool")
+                #print(slc)
                 #weights = layer.get_weights()[0]
                 #out, inp, row_size,col_size = weights.shape[i] for in len(weights.shape)
                 c_in = layer_inp[1]
@@ -165,10 +192,19 @@ class Wrapper(object):
                     stride = tuple([stride, stride])
 
 
-                H_min = slc[0][0]*stride[0]-padding[0]
-                W_min = slc[0][1]*stride[1]-padding[1]
-                H_max = slc[1][0]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0]
-                W_max = slc[1][1]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1]
+                H_min = max(0, slc[0][1]*stride[0]-padding[0])
+                W_min = max(0,slc[0][2]*stride[1]-padding[1])
+                H_max = min(H-1, slc[1][1]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0])
+                W_max = min(W-1, slc[1][2]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1])
+
+                if isinstance(layer, nn.MaxPool2d):
+                    slc = ((slc[0][0], H_min, W_min),
+                            (slc[1][0],H_max,W_max))
+                else:
+                    slc = ((0, H_min, W_min),
+                            (c_in-1,H_max,W_max))
+
+                #print(slc)
                 #shp = layer.input_shape
                 #shp = self.layer_shape(n1-1)
                 #if layer.padding == 'same':
@@ -187,8 +223,11 @@ class Wrapper(object):
             #    slc = ((slc[0][0] * wrows,slc[0][1] * wcols,slc[0][2]),
             #           ((slc[1][0]+1)*wrows-1,(slc[1][1]+1)*wcols-1,slc[1][2]))
             elif isinstance(layer,Flatten):
+                #print("flatten")
                 shape = layer_inp[1:]
+                #print(slc)
                 slc = (unflatten_unit(shape,slc[0]),unflatten_unit(shape,slc[1]))
+                #print(slc)
             elif isinstance(layer,nn.Linear):
                 shape = layer_inp[1:]
                 slc = (tuple(0 for x in shape),tuple(x-1 for x in shape))

@@ -39,4 +39,4 @@ def get_model():
     return Wrapper(model, [1,3,32,32])
 
 params = {'size':20000,'alpha':0.95,'gamma':0.6,'mu':0.9,'layers':[6,14]}
-    
+

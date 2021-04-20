@@ -32,7 +32,7 @@ class LoadThread(Thread):
     top : 'MainWindow'
     name : str
     data_model : DataModel
-    
+
     def run(self):
         self.top.message('Loading model "{}"...\n'.format(self.name))
         self.data_model.load(self.name)
@@ -56,7 +56,7 @@ class InterpolantSpec(object):
 class InterpolantThread(Thread):
     top : 'MainWindow'
     spec : InterpolantSpec
-    
+
     def run(self):
         self.top.message('Computing interpolant...\n')
         #with self.spec.data_model.session():
@@ -74,7 +74,7 @@ class InterpolantThread(Thread):
         super(InterpolantThread, self).__init__()
         self.top,self.spec = top,spec
 
-#        
+#
 # GUI elements
 #
 
@@ -109,9 +109,9 @@ class Model(HasTraits):
     # Choice of dataset to view
 
     use_set = Enum('training','test',desc='Dataset to view')
-    
+
     # Interpolation parameters
-    
+
     alpha = Float(0.98)  # precision parameter
     gamma = Float(0.6)   # recall parameter
     mu = Float(0.9)      # recall shrink parameter
@@ -125,7 +125,7 @@ class Model(HasTraits):
     #_tf_session = None
     _param_names : List[str] = ['alpha','gamma','mu','size','ensemble_size']
 
-    
+
     def _data_model_default(self):
         return DataModel()
 
@@ -156,7 +156,7 @@ class Model(HasTraits):
     def inputs(self):
         return (self.data_model.x_train if self.use_set == 'training'
                 else self.data_model.x_test)
-        
+
     def model_eval(self):
         return (self.data_model._train_eval if self.use_set == 'training'
                 else self.data_model._test_eval)
@@ -169,7 +169,7 @@ class Model(HasTraits):
 
     def output_layer(self) -> int:
         return self.data_model.output_layer()
-        
+
     def get_inputs_pred(self,lpred:LayerPredicate,N=9):
         eval = self.model_eval()
         eval.set_layer_pred(lpred)
@@ -205,7 +205,7 @@ class Model(HasTraits):
         for key,val in kwargs.items():
             if key in self._param_names:
                 self.__setattr__(key,val)
-                
+
 
     # Get the interpolant keyword args from object traits
 
@@ -215,7 +215,7 @@ class Model(HasTraits):
     def pred_cone(self,lp:LayerPredicate) -> Tuple:
         return get_pred_cone(self.data_model.model,lp)
 
-            
+
 # Metadata for images displayed in the figure.
 
 class FigMetaData(object):
@@ -226,13 +226,13 @@ class FigMetaData(object):
 
     def __init__(self,input_idx,input,pred,cone=None):
         self.input_idx,self.input,self.pred,self.cone = (input_idx,input,pred,cone)
-    
+
 # Base class for interface states. A state object has a reference
 # `top` to the main UI window.
 
 class State(object):
     top : 'MainWindow'
-    
+
 # An InitState consists of the following elements:
 #
 # - A conclusion (a layer/predicate pair)
@@ -316,7 +316,7 @@ class NormalState(State):
     compimgs : List[np.ndarray] = []
     stats : Stats
     _restrict : bool = False
-    
+
     # Draw the matplotlib figure corresponding to this state.  In the
     # normal case, we display the input image along with the
     # comparison set.  If there is an interpolant, then below each
@@ -344,9 +344,9 @@ class NormalState(State):
                 imgs.extend(im[cone] for im in top_row)
                 cones.append(cone)
             concs.extend(conjs)
-        imgs = prepare_images(imgs) 
+        imgs = prepare_images(imgs)
         rows = len(imgs) // cols
-        for idx,img in enumerate(imgs): 
+        for idx,img in enumerate(imgs):
             row,col = idx//cols, idx % cols
             sub = figure.add_subplot(rows, cols, idx + 1)
             sub.imshow(img)
@@ -354,8 +354,8 @@ class NormalState(State):
             sub.identifier = FigMetaData(top_idxs[col],top_row[col],concs[row])
             if row == 0:
                 for sidx,slc in enumerate(cones):
-                    ycenter = (slc[0].start + slc[0].stop)/2.0
-                    xcenter = (slc[1].start + slc[1].stop)/2.0
+                    ycenter = (slc[1].start + slc[1].stop)/2.0
+                    xcenter = (slc[2].start + slc[2].stop)/2.0
                     pixel = img[int(ycenter),int(xcenter)]
                     c = 'black' if np.mean(pixel) >= 0.5 else 'white'
                     sub.text(xcenter,ycenter,str(sidx),fontsize=11,
@@ -412,7 +412,7 @@ class NormalState(State):
             self.refresh_comparison()
         else:
             self.compset, self.compimgs = [],[]
-            
+
     def refresh_comparison(self):
         if self.comp is not None:
             comp = self.comp
@@ -442,9 +442,7 @@ class NormalState(State):
 #
 
 class MainWindow(HasTraits):
-    #print(datasets.keys())
     display = Instance(TextDisplay(), ())
-    #print(list(datasets))
     model = Instance(Model)
     figure = Instance(Figure,())
     layers = t.List(editor=SetEditor(name='avail'))
@@ -466,7 +464,7 @@ class MainWindow(HasTraits):
                   Item('figure', editor=MPLFigureEditor(),
                        show_label=False, springy=True), label='Images'),
             style='custom', style_sheet='*{font-size:11pt}'), resizable=True)
-    
+
     # List of availaible layers, used by `layers`, above
     avail = t.List([])
 
@@ -475,10 +473,10 @@ class MainWindow(HasTraits):
 
     def _model_default(self):
         return Model(top=self)
-    
+
     def __init__(self):
         super(MainWindow, self).__init__()
-        
+
     def update(self):
         print ('clearing figure...')
         self.figure.clear()
@@ -510,7 +508,7 @@ class MainWindow(HasTraits):
     def onclick(self,event):
         if self._states:
             self._states[-1].onclick(event)
-        
+
     def on_axes_enter(self,event):
         if self._states:
             self._states[-1].on_axes_enter(event)
@@ -521,10 +519,10 @@ class MainWindow(HasTraits):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             self.update()
             QApplication.restoreOverrideCursor()
-            
+
     def _restrict_changed(self):
         self.update()
-        
+
     def _category_changed(self):
         self.update()
 
@@ -532,21 +530,15 @@ def list_elems(l1,l2):
     return [l1[i] for i in l2 if i >= 0 and i < len(l1)]
 
 def main():
-    #print("test")
     #import_models()
-    #print("test1")
-    #print(datasets.keys())
     if len(sys.argv) > 1:
         verb = sys.argv[1]
         if verb == 'compress':
             from .compress import main as compress_main
             return compress_main()
-    #print(datasets.keys())
-    #print(list(datasets))
-    #print("test")
     MainWindow().configure_traits()
-        
+
 # Display the main window
-        
+
 if __name__ == '__main__':
     main()

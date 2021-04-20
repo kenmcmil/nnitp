@@ -5,13 +5,12 @@
 import sys
 import os
 import numpy as np
-import torch
 from importlib import import_module
 from .error import Error
-
+from .model_wrapper import compute_activation, sample_dataset
 # Code for fetching models and datasets.
 #
-# TODO: this is dependent on Keras framework.
+# TODO: this is dependent on torch framework.
 #
 # The models and datasets are defined by files in sub-directory
 # `models` with names of the form `<name>_model.py` where `<name>` is
@@ -24,16 +23,7 @@ from .error import Error
 # These functions are executed with `models` as working directory.
 #
 
-# TODO: maybe this belongs in a 'utilities' file.
 
-def unflatten_unit(input_shape,unit):
-    unit = unit[0] if isinstance(unit,tuple) else unit
-    res = tuple()
-    while len(input_shape) > 0:
-        input_shape,dim = input_shape[:-1],input_shape[-1]
-        res = (unit%dim,) + res
-        unit = unit//dim
-    return res
 
 datasets = {}
 
@@ -53,8 +43,7 @@ for dir in model_path:
             name = fname[0:-len(suffix)]
             datasets[name] = module
 sys.path = orig_sys_path
-#print(datasets.keys())
-        
+
 # Class `DataModel` is a combination of a dataset (training and test)
 # and a trained model. 
 
@@ -65,7 +54,7 @@ class DataModel(object):
     def __init__(self, name = None):
         self.loaded = False
         self.load(name)
-    
+
     # Load a `DataModel` by name. 
 
     def load(self,name):
@@ -73,12 +62,7 @@ class DataModel(object):
         if name is not None:
             module = datasets[name]
             cwd = os.getcwd()
-            #print(module.__file__)
             model_dir = os.path.dirname(module.__file__)
-            #os.chdir(model_dir)
-            #print(cwd)
-            #print(model_dir)
-            #print(os.getcwd())
             os.chdir("nnitp/models")
             self.model = module.get_model()
             self.train_data,self.test_data = module.get_data()
@@ -86,36 +70,20 @@ class DataModel(object):
             os.chdir(cwd)
             self.loaded = True
 
-    # TRICKY: to use the model in a thread other than the one in which
-    # it was created, we have to set it up as the default
-    # session. This method returns a context object suitable for this
-    # purpose.  If you want to run inference using a DataModel `foo`,
-    # you have to use `with foo.session(): ...`.
 
-    #def session(self):
-    #    return self.model.session()
-    
+
     def set_sample_size(self,size:int):
-        train_data = torch.utils.data.Subset(self.train_data, range(size))
-        test_data = torch.utils.data.Subset(self.test_data, range(size))
+        train_data = sample_dataset(self.train_data, size)
+        test_data = sample_dataset(self.test_data, size)
         self._train_eval = ModelEval(self.model,train_data)
         self._test_eval = ModelEval(self.model,test_data)
 
     def output_layer(self) -> int:
         return len(self.model.layers) - 1
-        
-# Computes the activation of layer `lidx` in model `model` over input
-# data `test`. Layer index `-1` stands for the input data.
-#
 
-def compute_activation(model,lidx,test):
-    return model.compute_activation(lidx,test)
 
-# Given a 'flat' index into a tensor, return the element index.
-# Here, `input_shape` is the shape of the tensor, and `unit` is the
-# index to an element of the tensor flattened into a vector.
 
-    
+
 # Object for evaluating a model on an input set and caching the
 # results. The constructor takes a model and some input data.  The
 # `eval` method returns the activation value of layer `idx`. The method
@@ -132,14 +100,9 @@ class ModelEval(object):
         if idx in self.eval_cache:
             return self.eval_cache[idx]
         print("evaluating layer {}".format(idx))
-        # Evaluate in batches of 10000 to avoid memout
-        res = []
-        data_loader = torch.utils.data.DataLoader(self.data, batch_size = 10000, num_workers = 4, pin_memory = True)
 
-        for i, (inp,target) in enumerate(data_loader):
-            #print(i)
-            res.append(compute_activation(self.model,idx,inp))
-        res = torch.cat(res).numpy()
+        res = compute_activation(self.model, idx, self.data, use_loader = True)
+
         print("done")
         self.eval_cache[idx] = res
         return res
@@ -161,9 +124,9 @@ class ModelEval(object):
         return np.compress(self.cond,np.arange(len(self.cond)))
     def eval_one(self,idx,input):
         data = input.reshape(1,*input.shape)
-        return compute_activation(self.model,idx,data)[0].numpy()
+        return compute_activation(self.model,idx,data)[0]
     def eval_all(self,idx,data):
-        return compute_activation(self.model,idx,data).numpy()
+        return compute_activation(self.model,idx,data)
 
 #
 # Evaluate a predicate on a vector. 
@@ -172,4 +135,3 @@ class ModelEval(object):
 
 def vect_eval(p,data):
     return np.array(list(map(p,data)))
-        

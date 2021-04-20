@@ -26,5 +26,5 @@ def get_model():
     model.load_state_dict(torch.load('mnist_model.pth'))
     return Wrapper(model,[1,1,28,28])
 
-params = {'size':100,'alpha':0.95,'gamma':0.6,'mu':0.9,'layers':[6,14]}
-    
+params = {'size':100,'alpha':0.98,'gamma':0.6,'mu':0.9,'layers':[2]}
+
