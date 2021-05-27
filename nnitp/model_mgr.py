@@ -6,8 +6,8 @@ import sys
 import os
 import numpy as np
 from importlib import import_module
-from .error import Error
-from .model_wrapper import compute_activation, sample_dataset
+from error import Error
+from model_wrapper import compute_activation, compute_all_activation, sample_dataset
 # Code for fetching models and datasets.
 #
 # TODO: this is dependent on torch framework.
@@ -63,7 +63,8 @@ class DataModel(object):
             module = datasets[name]
             cwd = os.getcwd()
             model_dir = os.path.dirname(module.__file__)
-            os.chdir("nnitp/models")
+            #os.chdir("nnitp/models")
+            os.chdir("models")
             self.model = module.get_model()
             self.train_data,self.test_data = module.get_data()
             self.params = module.params if hasattr(module,'params') else {}
@@ -127,6 +128,8 @@ class ModelEval(object):
         return compute_activation(self.model,idx,data)[0]
     def eval_all(self,idx,data):
         return compute_activation(self.model,idx,data)
+    def eval_all_layer(self):
+        return compute_all_activation(self.model, self.data, use_loader = True)
 
 #
 # Evaluate a predicate on a vector. 

@@ -240,7 +240,7 @@ def read_log(fname,output=None,header_only=False):
     if len(log) == 0:
         print("{}: log is empty".format(fname))
         exit(1)
-        
+
     params = log[0]
     results = log[1:]
     if log[0]['version'] == 0:  # version 0 did not record input index and conclusion

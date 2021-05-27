@@ -3,8 +3,10 @@
 #from tensorflow.keras.models import load_model
 import torch
 from torchvision import datasets, transforms
-from nnitp.models.models import MNIST_Model
-from nnitp.model_wrapper import Wrapper
+#from nnitp.models.models import MNIST_Model
+#from nnitp.model_wrapper import Wrapper
+from models.models import MNIST_Model
+from model_wrapper import Wrapper
 #from nnitp.datatype import Image
 
 # Fetch the CIFAR10 dataset, normalized with mean=0, std = 1

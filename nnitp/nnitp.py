@@ -194,6 +194,7 @@ class Model(HasTraits):
             spec.layer =  self.previous_layer(state.conc.layer)
             spec.data_model = self.data_model
             kwargs = self.get_kwargs()
+            print(kwargs)
             spec.kwargs = dict((k,kwargs[k]) for k in ['alpha','gamma','mu','ensemble_size'])
             self.worker_thread = InterpolantThread(self.top,spec)
             QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -395,7 +396,7 @@ class NormalState(State):
             new_state.conc = id.pred
             new_state.input = id.input
             self.top.model.interpolant(new_state)
-                
+
     def on_axes_enter(self,event):
         if event.inaxes is not None:
             id = event.inaxes.identifier

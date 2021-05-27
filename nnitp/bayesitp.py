@@ -2,12 +2,12 @@
 # Copyright (c) Microsoft Corporation.
 #
 
-from .model_mgr import  ModelEval, DataModel
-from .utils import unflatten_unit
+from model_mgr import  ModelEval, DataModel
+from utils import unflatten_unit
 import numpy as np
 import math
-from .itp import itp_pred, bound, LayerPredicate
-from .itp import BoundPredicate, And
+from itp import itp_pred, bound, LayerPredicate
+from itp import BoundPredicate, And
 import time
 import random
 from typing import Tuple, List, Optional, Callable
@@ -68,6 +68,8 @@ def fractile_all(gamma,pos,offset):
     minoff = int(math.ceil(gamma * len(offset))) - 1
     offvals = offset.copy()
     offvals.sort(axis=0)
+    #print(offvals.shape)
+    #print(offvals)
     return (np.flip(offvals,axis=0) if pos else offvals)[minoff]
 
 
@@ -241,7 +243,7 @@ def interpolant_int(train_eval,test_eval,l1,A,l2,pred,
 _ttime = 0.0
 
 # Compute a Bayesian interpolant.
-#
+#[M M<
 # Required parameters:
 #
 # - `data_model` : DataModel object providing model with training and test data
@@ -288,6 +290,8 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     _use_random_subspace = ensemble_size > 1
     _random_subspace_size = random_subspace_size or (lambda N: N//ensemble_size)
     l2,pred = lpred.layer,lpred.pred
+    #print(l2)
+    #print(pred)
     A = train_eval.eval_all(l1,inps)
     cone = get_pred_cone(train_eval.model,lpred,l1)
     res,train_error,test_error = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
@@ -296,7 +300,7 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     stats = Stats()
     stats.train_acc = train_error
     stats.test_acc = test_error
-    stats. time = _ttime 
+    stats.time = _ttime 
     return LayerPredicate(l1,And(*conjs)),stats 
 
 def describe_error(s,error):
@@ -376,11 +380,11 @@ def fractile(model:ModelEval,lidx:int,unit:Tuple[int,...],pos:bool,gamma:float):
 def fraction(model:ModelEval,lpred:LayerPredicate):
     data = lpred.eval(model)
     return np.count_nonzero(data) / len(data)
-    
+
 params = {
     'alpha':float,
     'gamma':float,
     'mu':float,
     'ensemble_size':int
 }
-    
+

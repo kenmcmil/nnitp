@@ -5,8 +5,9 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 #from nnitp.models.models import CIFAR10_Model
+#from nnitp.models.vgg import vgg13_bn
 #from nnitp.model_wrapper import Wrapper
-from models.models import CIFAR10_Model
+from models.vgg import vgg19_bn
 from model_wrapper import Wrapper
 #from nnitp.datatype import Image
 
@@ -36,8 +37,8 @@ def get_data():
 # Fetch the trained model
 
 def get_model():
-    model = CIFAR10_Model()
-    model.load_state_dict(torch.load('cifar10_model.pth'))
+    model = vgg19_bn()
+    model.load_state_dict(torch.load('vgg19_bn.pth'))
     return Wrapper(model, [1,3,32,32])
 
 params = {'size':20000,'alpha':0.95,'gamma':0.6,'mu':0.9,'layers':[6,14]}
