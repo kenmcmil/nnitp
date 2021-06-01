@@ -7,7 +7,7 @@ from threading import Thread
 from traits.api import HasTraits,String,Enum,Instance,Int,Button,Float,Bool
 import traits.api as t
 from traitsui.api import View, Item, SetEditor, Group, Tabbed, Handler
-from .model_mgr import DataModel, import_models, datasets
+from .model_mgr import DataModel,  datasets
 from matplotlib.figure import Figure
 from .mpl_editor import MPLFigureEditor
 from .itp import LayerPredicate, AndLayerPredicate, BoundPredicate
@@ -195,7 +195,6 @@ class Model(HasTraits):
             spec.layer =  self.previous_layer(state.conc.layer)
             spec.data_model = self.data_model
             kwargs = self.get_kwargs()
-            print(kwargs)
             spec.kwargs = dict((k,kwargs[k]) for k in ['alpha','gamma','mu','ensemble_size'])
             self.worker_thread = InterpolantThread(self.top,spec)
             QApplication.setOverrideCursor(Qt.WaitCursor)
