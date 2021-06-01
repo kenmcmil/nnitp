@@ -17,20 +17,21 @@ __all__ = [
 
 class VGG(nn.Module):
     '''
-    VGG model 
+    VGG model
     '''
     def __init__(self, features):
         super(VGG, self).__init__()
         self.features = features
         self.flatten =Flatten()
+        #self.avgpool = nn.AvgPool2d(2,2)
         self.classifier = nn.Sequential(
-            nn.Dropout(),
-            nn.Linear(512, 512),
+            nn.Linear(512*7*7, 4096),
             nn.ReLU(True),
             nn.Dropout(),
-            nn.Linear(512, 512),
+            nn.Linear(4096, 4096),
             nn.ReLU(True),
-            nn.Linear(512, 10),
+            nn.Dropout(),
+            nn.Linear(4096, 1000),
         )
          # Initialize weights
         for m in self.modules():
@@ -42,6 +43,8 @@ class VGG(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
+        #print(x.shape)
+        #x = self.avgpool(x)
         x = self.flatten(x)
         #x = x.view(x.size(0), -1)
         x = self.classifier(x)
@@ -68,7 +71,7 @@ cfg = {
     'A': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'B': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'D': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
-    'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 
+    'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M',
           512, 512, 512, 512, 'M'],
 }
 

@@ -6,8 +6,8 @@ import sys
 import os
 import numpy as np
 from importlib import import_module
-from error import Error
-from model_wrapper import compute_activation, compute_all_activation, sample_dataset
+from .error import Error
+from .model_wrapper import compute_activation, compute_all_activation, sample_dataset
 # Code for fetching models and datasets.
 #
 # TODO: this is dependent on torch framework.
@@ -63,8 +63,9 @@ class DataModel(object):
             module = datasets[name]
             cwd = os.getcwd()
             model_dir = os.path.dirname(module.__file__)
-            #os.chdir("nnitp/models")
-            os.chdir("models")
+            os.chdir("nnitp/models")
+            #os.chdir("models")
+            #os.chdir(model_dir)
             self.model = module.get_model()
             self.train_data,self.test_data = module.get_data()
             self.params = module.params if hasattr(module,'params') else {}

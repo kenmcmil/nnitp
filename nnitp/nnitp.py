@@ -7,7 +7,7 @@ from threading import Thread
 from traits.api import HasTraits,String,Enum,Instance,Int,Button,Float,Bool
 import traits.api as t
 from traitsui.api import View, Item, SetEditor, Group, Tabbed, Handler
-from .model_mgr import DataModel,datasets
+from .model_mgr import DataModel, import_models, datasets
 from matplotlib.figure import Figure
 from .mpl_editor import MPLFigureEditor
 from .itp import LayerPredicate, AndLayerPredicate, BoundPredicate
@@ -16,7 +16,7 @@ from typing import List,Optional,Tuple
 from .img import prepare_images
 from .bayesitp import Stats, interpolant, get_pred_cone, fraction, fractile
 from copy import copy
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt,Signal,QObject
 from PyQt5.QtWidgets import QMenu,QApplication
 from PyQt5.QtGui import QTextCursor
 import sys
@@ -37,7 +37,8 @@ class LoadThread(Thread):
         self.top.message('Loading model "{}"...\n'.format(self.name))
         self.data_model.load(self.name)
         self.top.message('Done loading model.\n')
-        self.top.model_loaded()
+        self.top.signals.model_loaded.emit()
+        #self.top.model_loaded()
 
     def __init__(self,top:'MainWindow',name:str,data_model:DataModel):
         super(LoadThread, self).__init__()
@@ -68,7 +69,8 @@ class InterpolantThread(Thread):
         self.top.message(str(stats))
         self.spec.state.itp = itp
         self.spec.state.stats = stats
-        self.top.push_state(self.spec.state)
+        #self.top.push_state(self.spec.state)
+        self.top.signals.push_state.emit(self.spec.state)
 
     def __init__(self,top:'MainWindow',spec:InterpolantSpec):
         super(InterpolantThread, self).__init__()
@@ -103,7 +105,6 @@ class Model(HasTraits):
     top : 'MainWindow'  # reference to the main window
 
     # Combo box for model name
-
     name = Enum('none',*list(datasets),desc='Available models and datasets')
 
     # Choice of dataset to view
@@ -429,6 +430,11 @@ class NormalState(State):
             self.compset, self.compimgs = self.top.model.get_inputs_pred(comp)
             self.restrict = self.top.restrict
 
+class Signals(QObject):
+    model_loaded = Signal()
+    push_state = Signal(State)
+
+
 # The main window. The view consists of the following elements:
 #
 # - A `display` for status updates.
@@ -471,12 +477,17 @@ class MainWindow(HasTraits):
 
     # Stack of states
     _states : List[State] = []
+    signals: Signals
+
 
     def _model_default(self):
         return Model(top=self)
 
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.signals = Signals()
+        self.signals.model_loaded.connect(self.model_loaded)
+        self.signals.push_state.connect(self.push_state)
 
     def update(self):
         print ('clearing figure...')
@@ -531,7 +542,9 @@ def list_elems(l1,l2):
     return [l1[i] for i in l2 if i >= 0 and i < len(l1)]
 
 def main():
+    #print("here")
     #import_models()
+    #print(list(datasets.keys()))
     if len(sys.argv) > 1:
         verb = sys.argv[1]
         if verb == 'compress':

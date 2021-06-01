@@ -2,12 +2,12 @@
 # Copyright (c) Microsoft Corporation.
 #
 
-from model_mgr import  ModelEval, DataModel
-from utils import unflatten_unit
+from .model_mgr import  ModelEval, DataModel
+from .utils import unflatten_unit
 import numpy as np
 import math
-from itp import itp_pred, bound, LayerPredicate
-from itp import BoundPredicate, And
+from .itp import itp_pred, bound, LayerPredicate
+from .itp import BoundPredicate, And
 import time
 import random
 from typing import Tuple, List, Optional, Callable

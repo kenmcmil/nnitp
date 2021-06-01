@@ -6,9 +6,9 @@ import torch.nn as nn
 from torchvision import datasets, transforms
 #from nnitp.models.models import CIFAR10_Model
 #from nnitp.models.vgg import vgg13_bn
-#from nnitp.model_wrapper import Wrapper
-from models.resnet import resnet34
-from model_wrapper import Wrapper
+from nnitp.model_wrapper import Wrapper
+from nnitp.models.resnet import resnet34
+#from model_wrapper import Wrapper
 #from nnitp.datatype import Image
 
 # Fetch the CIFAR10 dataset, normalized with mean=0, std = 1

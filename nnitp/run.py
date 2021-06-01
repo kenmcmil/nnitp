@@ -15,7 +15,7 @@ from statistics import mean
 import matplotlib.pyplot as plt
 import matplotlib
 from mpl_toolkits.axisartist.parasite_axes import HostAxes, ParasiteAxes
-
+import os
 
 
 #
@@ -27,25 +27,24 @@ from mpl_toolkits.axisartist.parasite_axes import HostAxes, ParasiteAxes
 
 
 
-def main(param,summary, layer):
-    name = "cifar10_vgg19"
+def main(param,summary):
+    name = "cifar10_vgg13"
     category = 0
     input_idx = 0
     size = 20000
-    kwargs = {"alpha":0.95, "gamma": 0.6, "mu":0.9, "ensemble_size":1}
-    kwargs.update(param)
-    #kwargs["gamma"] = gamma
+    kwargs = {"alpha":0.95, "ensemble_size":1}
+    kwargs["gamma"] = param["gamma"]
+    kwargs["mu"] = param["mu"]
     data_model = DataModel()
     data_model.load(name)
     data_model.set_sample_size(size)
     train_eval = data_model._train_eval
     test_eval = data_model._test_eval
-    layer_idxs = [layer]
+    layer_idxs = [param["layer"]]
     avails = ['-1:input'] + ['{:0>2}'.format(i)+':'+ l
                             for i,l in enumerate(data_model.model.layers)]
     print(avails)
     layers = [avails[i] for i in layer_idxs if i>=0 and i <len(avails)]
-
     conc = output_category_predicate(data_model, category)
     compset = conc.sat(train_eval)
     inp = compset[input_idx]
@@ -61,23 +60,18 @@ def main(param,summary, layer):
     itp,stats = interpolant(data_model,layer,
                                          inp,conc,**kwargs)
 
-    print(itp)
-    cones = []
+    #cones = []
 
-    for conj in itp.conjs():
-        cone = get_pred_cone(data_model.model, conj)
-        #cone = data_model.pred_cone(conj)
-        cones.append(cone)
-    print(cones)
-    pixels = []
-    y58
-    for sidx, slc in enumerate(cones):
-        y = abs(slc[1].stop - slc[1].start)
-        x = abs(slc[2].stop - slc[2].start)
-        pixel = x*y
-        pixels.append(pixel)
-    print(pixels)
-    print(sum(pixels))
+    #for conj in itp.conjs():
+    #    cone = get_pred_cone(data_model.model, conj)
+    #    #cone = data_model.pred_cone(conj)
+    #    cones.append(cone)
+    #pixels = []
+    #for sidx, slc in enumerate(cones):
+    #    y = abs(slc[1].stop - slc[1].start)
+    #    x = abs(slc[2].stop - slc[2].start)
+    #    pixel = x*y
+    #    pixels.append(pixel)
 
 
     F,N,P = stats.train_acc
@@ -100,7 +94,7 @@ def main(param,summary, layer):
     #print("stats: {}\n".format(stats))
 
 
-def plot(logs,mu):
+def plot(logs,mu, save_dir):
     lines = []
     x = logs["gamma"]
     yprec = logs["train_prec"]
@@ -168,8 +162,8 @@ def plot(logs,mu):
     par2.axis["right2"].label.set_color(things[2].get_color())
     #plt.show()
 
-    plt.savefig("vgg_6/sweep0.7.png",dpi=fig.dpi, bbox_inches = 'tight')
-    plt.show()
+    plt.savefig(save_dir,dpi=fig.dpi, bbox_inches = 'tight')
+    #plt.show()
 
 
 
@@ -183,25 +177,35 @@ if __name__ == '__main__':
     #torch.manual_seed(123)
     #torch.cuda.manual_seed(123)
 
-    summary = {"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
-    param = {"mu":0.9, "gamma":0.75}
-    main(param, summary, layer = 13)
+    #summary = {"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
+    #param = {"mu":0.9, "gamma":0.75}
+    #main(param, summary, layer = 13)
 
-    #param = {"mu":0.9, "gamma":0.8}
-    #logs = {"gamma":[],"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
-    #for i in range(8):
-    #    summary = {"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
-    #    for j in range(5):
-    #      param["gamma"] = 0.45+i*0.05
-    #      main(param, summary,13)
-    #    logs["gamma"].append(0.45+i*0.05)
-    #    logs["train_prec"].append(mean(summary["train_prec"]))
-    #    logs["test_prec"].append(mean(summary["test_prec"]))
-    #    logs["train_recall"].append(mean(summary["train_recall"]))
-    #    logs["test_recall"].append(mean(summary["test_recall"]))
-    #    logs["complexity"].append(mean(summary["complexity"]))
-    #torch.save(logs, "vgg_13/vgg_data0.9.pth")
-    #plot(logs,0.9)
+    param = {"mu":0.9, "layer":10, "save_dir":"vgg13"}
+
+    for layer in [13,20,27]:
+        param["layer"]= layer
+        for mu in [0.7,0.9]:
+            param["mu"]=mu
+            logs = {"gamma":[],"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
+            for i in range(8):
+                summary = {"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
+                for j in range(5):
+                  param["gamma"] = 0.45+i*0.05
+                  main(param, summary)
+                logs["gamma"].append(0.45+i*0.05)
+                logs["train_prec"].append(mean(summary["train_prec"]))
+                logs["test_prec"].append(mean(summary["test_prec"]))
+                logs["train_recall"].append(mean(summary["train_recall"]))
+                logs["test_recall"].append(mean(summary["test_recall"]))
+                logs["complexity"].append(mean(summary["complexity"]))
+            path = "%s/%d"%(param["save_dir"],param["layer"])
+            if not os.path.exists(path):
+                os.mkdir("%s/%d"%(param["save_dir"],param["layer"]))
+            data_save_dir = "%s/%d/data%2.1f.pth"%(param["save_dir"],param["layer"],param["mu"])
+            fig_save_dir = "%s/%d/sweep%2.1f.png"%(param["save_dir"],param["layer"],param["mu"])
+            torch.save(logs, data_save_dir)
+            plot(logs,param["mu"], fig_save_dir)
 
 
 
