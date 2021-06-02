@@ -4,10 +4,30 @@ Nnitp is a tool for interpretability of neural network inferences
 using Bayesian interpolants. The basic technique is described in
 [this paper](https://arxiv.org/abs/2004.04198). It currently supports
 convolutional neural networks for image classification, using the
-[Keras](https://keras.io/) framework.
+[Pytorch](https://pytorch.org/) framework.
 
 Documentation on nnitp can be found
 [here](https://nnitp.readthedocs.io/en/latest/)
+
+
+# Install and Run
+
+The pretrained model can be downloaded [here]()
+
+Before install the program, run
+'''pip install -r requirement.txt'''
+
+To install the program, clone the repository and run
+'''pip install .'''
+
+To run the program
+'''nnitp'''
+
+Before you run the program, define environment varibale IMAGENETDIR and
+PRETRAINEDDIR as the directory to the imagenet dataset and pretrianed model
+
+'''export IMAGENETDIR='path/to/imagenet'''
+'''export PRETRAINED='path/to/pretrained'''
 
 
 # Contributing
