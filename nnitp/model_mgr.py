@@ -49,7 +49,7 @@ sys.path = orig_sys_path
 
 class DataModel(object):
 
-    # Intial, the DataModel is unloaded, unless a name is given.
+    # Initial, the DataModel is unloaded, unless a name is given.
 
     def __init__(self, name = None):
         self.loaded = False
@@ -61,16 +61,9 @@ class DataModel(object):
         self.name = name
         if name is not None:
             module = datasets[name]
-            #cwd = os.getcwd()
-            #model_dir = os.path.dirname(module.__file__)
-            #os.chdir("nnitp/models")
-            #os.chdir("models")
-            #os.chdir(model_dir)
-            #print(model_dir)
             self.model = module.get_model()
             self.train_data,self.test_data = module.get_data()
             self.params = module.params if hasattr(module,'params') else {}
-            #os.chdir(cwd)
             self.loaded = True
 
 
@@ -78,8 +71,8 @@ class DataModel(object):
     def set_sample_size(self,size:int):
         train_data = sample_dataset(self.train_data, size)
         test_data = sample_dataset(self.test_data, size)
-        self._train_eval = ModelEval(self.model,train_data)
-        self._test_eval = ModelEval(self.model,test_data)
+        self._train_eval = ModelEval(self.model,train_data, self.name)
+        self._test_eval = ModelEval(self.model,test_data, self.name)
 
     def output_layer(self) -> int:
         return len(self.model.layers) - 1
@@ -96,15 +89,16 @@ class DataModel(object):
 # of the indices satisfying `p`.
 
 class ModelEval(object):
-    def __init__(self,model,data):
+    def __init__(self,model,data, name):
         self.model,self.data = model,data
         self.eval_cache = dict()
+        self.name=name
     def eval(self,idx):
         if idx in self.eval_cache:
             return self.eval_cache[idx]
         print("evaluating layer {}".format(idx))
 
-        res = compute_activation(self.model, idx, self.data, use_loader = True)
+        res = compute_activation(self.model, idx, self.data, use_loader = True, name = name)
 
         print("done")
         self.eval_cache[idx] = res
@@ -127,11 +121,11 @@ class ModelEval(object):
         return np.compress(self.cond,np.arange(len(self.cond)))
     def eval_one(self,idx,input):
         data = input.reshape(1,*input.shape)
-        return compute_activation(self.model,idx,data)[0]
+        return compute_activation(self.model,idx,data, name = name)[0]
     def eval_all(self,idx,data):
-        return compute_activation(self.model,idx,data)
+        return compute_activation(self.model,idx,data, name = name)
     def eval_all_layer(self):
-        return compute_all_activation(self.model, self.data, use_loader = True)
+        return compute_all_activation(self.model, self.data, use_loader = True, name = name)
 
 #
 # Evaluate a predicate on a vector.

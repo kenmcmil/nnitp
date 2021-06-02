@@ -24,10 +24,13 @@ def sample_dataset(data, size):
     return data
 
 
-def compute_all_activation(model,test, use_loader = False):
+def compute_all_activation(model,test, use_loader = False, name =None):
     if use_loader:
         temp = []
-        data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 4, pin_memory = True)
+        if name.startswith("imagenet"):
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
+        else:
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 10000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
             temp.append(model.compute_all_activation(inp))
         ret=[]
@@ -49,10 +52,13 @@ def compute_all_activation(model,test, use_loader = False):
 # data `test`. Layer index `-1` stands for the input data.
 #
 
-def compute_activation(model,lidx,test, use_loader = False, all_layer = False):
+def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
     if use_loader:
         ret = []
-        data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
+        if name.startswith("imagenet"):
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
+        else:
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 10000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
             ret.append(model.compute_activation(lidx, inp).cpu())
         ret = torch.cat(ret)
@@ -86,7 +92,6 @@ class Wrapper(object):
         self.model = model.to(self.device)
         self.model.eval()
         #self._backend_session = K.get_session()
-
         self.inp_shape = inp_shape
         #self.mid_out = []
         #self.fhooks = []
