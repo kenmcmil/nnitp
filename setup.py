@@ -30,8 +30,10 @@ setup(name='nnitp',
           'traitsui',
           'numpy',
           'matplotlib',
-          'tensorflow',
-      ] + (['PyQt5'] if platform.system() == 'Windows' else []) ,
+          'torch',
+          'torchvision'
+          'PyQt5'
+      ],
       entry_points = {
         'console_scripts': ['nnitp=nnitp.nnitp:main',],
       },

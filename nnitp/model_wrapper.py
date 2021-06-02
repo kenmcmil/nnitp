@@ -14,7 +14,7 @@ from typing import Tuple
 from .utils import unflatten_unit
 #from nnitp.models.models import Flatten
 from nnitp.models.models import Flatten
-import nnitp.models.resnet as resnet
+#import nnitp.models.resnet as resnet
 
 
 # This class is the interface to torch models.
@@ -53,10 +53,11 @@ def compute_all_activation(model,test, use_loader = False, name =None):
 #
 
 def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
+    print(name)
     if use_loader:
         ret = []
         if name.startswith("imagenet"):
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
         else:
             data_loader = torch.utils.data.DataLoader(test, batch_size = 10000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
@@ -71,7 +72,8 @@ def compute_activation(model,lidx,test, use_loader = False, all_layer = False, n
 
 def get_layers(model, layers, layers_name):
     for name,layer in model.named_children():
-        if isinstance(layer, nn.Sequential) or isinstance(layer, resnet.BasicBlockM) or isinstance(layer, resnet.Bottleneck):
+        #if isinstance(layer, nn.Sequential) or isinstance(layer, resnet.BasicBlockM) or isinstance(layer, resnet.Bottleneck):
+        if isinstance(layer, nn.Sequential):
             get_layers(layer, layers,layers_name)
         if len(list(layer.children()))==0:
             layers.append(layer)
@@ -136,91 +138,91 @@ class Wrapper(object):
             self.mid_out.append(out.detach())
         return hook
 
-    def get_graph_resnet(self):
-        D = dict()
-        n = 0
-        V = []
-        E = [[]]
+    #def get_graph_resnet(self):
+    #    D = dict()
+    #    n = 0
+    #    V = []
+    #    E = [[]]
 
-        def record_hook(module, input, output):
-            key = id(module)
-            if key not in D:
-                D[key] = len(V)
-                V.append(module)
+    #    def record_hook(module, input, output):
+    #        key = id(module)
+    #        if key not in D:
+    #            D[key] = len(V)
+    #            V.append(module)
 
-        def add_edge(src, dst):
-            i = D[id(src)]
-            j = D[id(dst)]
-            E[i][j] = True
+    #    def add_edge(src, dst):
+    #        i = D[id(src)]
+    #        j = D[id(dst)]
+    #        E[i][j] = True
 
-        def add_chain(ls):
-            for i in range(len(ls) - 1):
-                add_edge(ls[i], ls[i + 1])
+    #    def add_chain(ls):
+    #        for i in range(len(ls) - 1):
+    #            add_edge(ls[i], ls[i + 1])
 
-        hooks = []
-        for module in self._layers:
-            hooks.append(module.register_forward_hook(record_hook))
-        x = torch.randn(self.inp_shape).to(self.device)
-        y = self.model(x)
-        for hook in hooks:
-            hook.remove()
+    #    hooks = []
+    #    for module in self._layers:
+    #        hooks.append(module.register_forward_hook(record_hook))
+    #    x = torch.randn(self.inp_shape).to(self.device)
+    #    y = self.model(x)
+    #    for hook in hooks:
+    #        hook.remove()
 
-        n = len(V)
-        E = [([False] * n) for i in range(n)]
+    #    n = len(V)
+    #    E = [([False] * n) for i in range(n)]
 
-        chain = [self.model.conv1, self.model.bn1, self.model.relu1]
-        add_chain(chain)
+    #    chain = [self.model.conv1, self.model.bn1, self.model.relu1]
+    #    add_chain(chain)
 
-        src = [self.model.relu1]
-        for module in self.model.modules():
-            if isinstance(module, resnet.BasicBlockM):
-                chain = [module.conv1, module.bn1, module.relu1,
-                         module.conv2, module.bn2, module.relu2]
-                add_chain(chain)
-                dst = [module.conv1]
-                src_ = [module.relu2]
+    #    src = [self.model.relu1]
+    #    for module in self.model.modules():
+    #        if isinstance(module, resnet.BasicBlockM):
+    #            chain = [module.conv1, module.bn1, module.relu1,
+    #                     module.conv2, module.bn2, module.relu2]
+    #            add_chain(chain)
+    #            dst = [module.conv1]
+    #            src_ = [module.relu2]
 
-                if module.downsample is not None:
-                    chain = list(module.downsample.children())
-                    add_chain(chain)
-                    dst.append(chain[0])
-                    add_edge(chain[-1], module.relu2)
-                else:
-                    dst.append(module.relu2)
+    #            if module.downsample is not None:
+    #                chain = list(module.downsample.children())
+    #                add_chain(chain)
+    #                dst.append(chain[0])
+    #                add_edge(chain[-1], module.relu2)
+    #            else:
+    #                dst.append(module.relu2)
 
-                for s in src:
-                    for d in dst:
-                        add_edge(s, d)
-                src = src_
-                dst = []
+    #            for s in src:
+    #                for d in dst:
+    #                    add_edge(s, d)
+    #            src = src_
+    #            dst = []
 
-            if isinstance(module, resnet.Bottleneck):
-                chain = [module.conv1, module.bn1, module.relu1,
-                         module.conv2, module.bn2, module.relu2,
-                         module.conv3, module.bn3, module.relu3]
-                add_chain(chain)
-                dst = [module.conv1]
-                src_ = [module.relu3]
+    #        if isinstance(module, resnet.Bottleneck):
+    #            chain = [module.conv1, module.bn1, module.relu1,
+    #                     module.conv2, module.bn2, module.relu2,
+    #                     module.conv3, module.bn3, module.relu3]
+    #            add_chain(chain)
+    #            dst = [module.conv1]
+    #            src_ = [module.relu3]
 
-                if module.downsample is not None:
-                    chain = list(module.downsample.children())
-                    add_chain(chain)
-                    dst.append(chain[0])
-                    add_edge(chain[-1], module.relu3)
-                else:
-                    dst.append(module.relu3)
+    #            if module.downsample is not None:
+    #                chain = list(module.downsample.children())
+    #                add_chain(chain)
+    #                dst.append(chain[0])
+    #                add_edge(chain[-1], module.relu3)
+    #            else:
+    #                dst.append(module.relu3)
 
-                for s in src:
-                    for d in dst:
-                        add_edge(s, d)
-                src = src_
-                dst = []
-        chain = [self.model.avgpool, self.model.flatten, self.model.fc]
-        for s in src:
-            add_edge(s, chain[0])
-        add_chain(chain)
+    #            for s in src:
+    #                for d in dst:
+    #                    add_edge(s, d)
+    #            src = src_
+    #            dst = []
+    #    chain = [self.model.avgpool, self.model.flatten, self.model.fc]
+    #    for s in src:
+    #        add_edge(s, chain[0])
+    #    add_chain(chain)
 
-        return n, V, E
+    #    return n, V, E
     # To use this model in given model in a thread, we have to set it
     # up as the default Keras session and also set up the tensorflow
     # default graph. This method returns a context object suitable for

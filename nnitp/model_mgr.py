@@ -98,7 +98,7 @@ class ModelEval(object):
             return self.eval_cache[idx]
         print("evaluating layer {}".format(idx))
 
-        res = compute_activation(self.model, idx, self.data, use_loader = True, name = name)
+        res = compute_activation(self.model, idx, self.data, use_loader = True, name = self.name)
 
         print("done")
         self.eval_cache[idx] = res
@@ -121,11 +121,11 @@ class ModelEval(object):
         return np.compress(self.cond,np.arange(len(self.cond)))
     def eval_one(self,idx,input):
         data = input.reshape(1,*input.shape)
-        return compute_activation(self.model,idx,data, name = name)[0]
+        return compute_activation(self.model,idx,data, name = self.name)[0]
     def eval_all(self,idx,data):
-        return compute_activation(self.model,idx,data, name = name)
+        return compute_activation(self.model,idx,data, name = self.name)
     def eval_all_layer(self):
-        return compute_all_activation(self.model, self.data, use_loader = True, name = name)
+        return compute_all_activation(self.model, self.data, use_loader = True, name = self.name)
 
 #
 # Evaluate a predicate on a vector.

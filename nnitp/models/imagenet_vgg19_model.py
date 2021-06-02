@@ -51,5 +51,5 @@ def get_model():
     model.load_state_dict(torch.load(modeldir))
     return Wrapper(model, [1,3,224,224])
 
-params = {'size':5000,'alpha':0.85,'gamma':0.6,'mu':0.9,'layers':[6,14]}
+params = {'size':5000,'alpha':0.85,'gamma':0.6,'mu':0.9,'layers':[51]}
 
