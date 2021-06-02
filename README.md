@@ -15,19 +15,19 @@ Documentation on nnitp can be found
 The pretrained model can be downloaded [here]()
 
 Before install the program, run
-'''pip install -r requirement.txt'''
+'pip install -r requirement.txt'
 
 To install the program, clone the repository and run
-'''pip install .'''
+'pip install .'
 
 To run the program
-'''nnitp'''
+'nnitp'
 
 Before you run the program, define environment varibale IMAGENETDIR and
 PRETRAINEDDIR as the directory to the imagenet dataset and pretrianed model
 
-'''export IMAGENETDIR='path/to/imagenet'''
-'''export PRETRAINED='path/to/pretrained'''
+'export IMAGENETDIR='path/to/imagenet'
+'export PRETRAINED='path/to/pretrained'
 
 
 # Contributing
