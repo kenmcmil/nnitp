@@ -38,7 +38,9 @@ def get_data():
 
 def get_model():
     model = vgg13_bn()
-    model.load_state_dict(torch.load('vgg13_bn.pth'))
+    pretraineddir = os.environ["PRETRAINEDDIR"]
+    modeldir = os.path.join(pretraineddir, "vgg13_bn.pth")
+    model.load_state_dict(torch.load(model_dir))
     return Wrapper(model, [1,3,32,32])
 
 params = {'size':20000,'alpha':0.95,'gamma':0.6,'mu':0.9,'layers':[6,14]}

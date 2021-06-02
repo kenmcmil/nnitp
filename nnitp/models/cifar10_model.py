@@ -37,7 +37,9 @@ def get_data():
 
 def get_model():
     model = CIFAR10_Model()
-    model.load_state_dict(torch.load('cifar10_model.pth'))
+    pretraineddir = os.environ["PRETRAINEDDIR"]
+    modeldir = os.path.join(pretraineddir, "cifar10_model.pth")
+    model.load_state_dict(torch.load(modeldir))
     return Wrapper(model, [1,3,32,32])
 
 params = {'size':20000,'alpha':0.95,'gamma':0.6,'mu':0.9,'layers':[6,14]}

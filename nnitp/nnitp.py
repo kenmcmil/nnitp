@@ -52,7 +52,7 @@ class InterpolantSpec(object):
     data_model : DataModel
     kwargs : dict
 
-# This thread is for computing an interpolant. 
+# This thread is for computing an interpolant.
 
 class InterpolantThread(Thread):
     top : 'MainWindow'
@@ -88,7 +88,7 @@ class InterpolantThread(Thread):
 class TextDisplayHandler(Handler):
 
     def object_string_changed(self,info):
-        info.string.control.moveCursor(QTextCursor.End)        
+        info.string.control.moveCursor(QTextCursor.End)
 
 
 class TextDisplay(HasTraits):

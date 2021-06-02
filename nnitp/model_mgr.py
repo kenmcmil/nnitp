@@ -45,7 +45,7 @@ for dir in model_path:
 sys.path = orig_sys_path
 
 # Class `DataModel` is a combination of a dataset (training and test)
-# and a trained model. 
+# and a trained model.
 
 class DataModel(object):
 
@@ -55,21 +55,22 @@ class DataModel(object):
         self.loaded = False
         self.load(name)
 
-    # Load a `DataModel` by name. 
+    # Load a `DataModel` by name.
 
     def load(self,name):
         self.name = name
         if name is not None:
             module = datasets[name]
-            cwd = os.getcwd()
-            model_dir = os.path.dirname(module.__file__)
-            os.chdir("nnitp/models")
+            #cwd = os.getcwd()
+            #model_dir = os.path.dirname(module.__file__)
+            #os.chdir("nnitp/models")
             #os.chdir("models")
             #os.chdir(model_dir)
+            #print(model_dir)
             self.model = module.get_model()
             self.train_data,self.test_data = module.get_data()
             self.params = module.params if hasattr(module,'params') else {}
-            os.chdir(cwd)
+            #os.chdir(cwd)
             self.loaded = True
 
 
@@ -133,7 +134,7 @@ class ModelEval(object):
         return compute_all_activation(self.model, self.data, use_loader = True)
 
 #
-# Evaluate a predicate on a vector. 
+# Evaluate a predicate on a vector.
 #
 # TODO: replace this with Predicate.map
 

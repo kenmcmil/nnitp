@@ -25,7 +25,9 @@ def get_data():
 
 def get_model():
     model = MNIST_Model()
-    model.load_state_dict(torch.load('mnist_model.pth'))
+    pretraineddir = os.environ["PRETRAINEDDIR"]
+    modeldir = os.path.join(pretraineddir, "mnist_model.pth")
+    model.load_state_dict(torch.load(modeldir))
     return Wrapper(model,[1,1,28,28])
 
 params = {'size':100,'alpha':0.98,'gamma':0.6,'mu':0.9,'layers':[2]}
