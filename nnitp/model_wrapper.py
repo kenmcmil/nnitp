@@ -53,7 +53,6 @@ def compute_all_activation(model,test, use_loader = False, name =None):
 #
 
 def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
-    print(name)
     if use_loader:
         ret = []
         if name.startswith("imagenet"):

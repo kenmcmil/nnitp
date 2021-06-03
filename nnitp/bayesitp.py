@@ -290,8 +290,6 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     _use_random_subspace = ensemble_size > 1
     _random_subspace_size = random_subspace_size or (lambda N: N//ensemble_size)
     l2,pred = lpred.layer,lpred.pred
-    #print(l2)
-    #print(pred)
     A = train_eval.eval_all(l1,inps)
     cone = get_pred_cone(train_eval.model,lpred,l1)
     res,train_error,test_error = interpolant_int(train_eval,test_eval,l1,A,l2,pred,

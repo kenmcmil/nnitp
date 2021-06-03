@@ -31,7 +31,7 @@ setup(name='nnitp',
           'numpy',
           'matplotlib',
           'torch',
-          'torchvision'
+          'torchvision',
           'PyQt5'
       ],
       entry_points = {
