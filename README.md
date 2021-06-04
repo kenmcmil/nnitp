@@ -17,19 +17,9 @@ Documentation on nnitp can be found in:
 
 Installation requires Python 3.8 or later. 
 
-Before installing the program, run
-
-    pip3 install -r requirement.txt
-
 To install the program, clone the repository and run
 
     pip3 install .
-
-# Running the program:
-
-To run the program:
-
-    nnitp
 
 # Pre-trained models
 
@@ -52,12 +42,27 @@ Step 5:  Unzip the archive:
 Step 6:  Set environment variables to point to the model and dataset:
 
     export IMAGENETDIR=`pwd`/imagenet
-    export PRETRAINED=`pwd`/pretrained
+    export PRETRAINEDDIR=`pwd`/pretrained
 
 
 Note, the MNIST and CIFAR-10 datasets are downloaded automatically.
 
-# Reproducing the dtat in the paper
+# Running the program:
+
+To run the program:
+
+    nnitp
+
+# Reproducing the data in the paper
 
 Steps for reproducing the data in the paper are in scripts/README.md
+
+To run the CIFAR-10 example showing explaining the mis-classification
+of a cat image as an airplane in the grahpical user interface, see
+this file:
+
+    _build/html/quick_start.html
+
+
+
 
