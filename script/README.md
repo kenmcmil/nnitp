@@ -24,7 +24,7 @@ To get the partial data for the imagenet as shown in the paper,
 
 `python3 sweep.py --experiment imagenet_vgg19 --num_images 5 --layer SELECTED --category 0 --sample_size 5000`
 
-We can get sweep graphs for different  #SELECTED layer and then manually determine
+We can get sweep graphs for different   **SELECTED** layer and then manually determine
 the sweet spot. As mentioned, this command only evaluate the experiment for single category
 and limited amount of data.
 

@@ -36,7 +36,7 @@ PRETRAINEDDIR as the directory to the imagenet dataset and pretrianed model
 `export PRETRAINED='path/to/pretrained`
 
 
-#IMAGENET Analysis
+# IMAGENET Analysis
 | Layers       | mu          | gamma       | Precision   | Recall      |Complexity    |
 | :---         |    :----:   |    :----:   |    :----:   |    :----:   |         ---: |
 | 38           | 0.7         | 0.55        | 0.09        |0.12         |4.0           |
