@@ -34,8 +34,6 @@ def main(param,summary):
     size = param["size"]
     category = param["category"]
     input_idx = param["input_idx"]
-    print(category)
-    print(input_idx)
     if name == "imagenet_vgg19":
         kwargs = {"alpha":0.85, "ensemble_size":1}
     elif name == "cifar10":
@@ -56,7 +54,6 @@ def main(param,summary):
     layers = [avails[i] for i in layer_idxs if i>=0 and i <len(avails)]
     conc = output_category_predicate(data_model, category)
     compset = conc.sat(train_eval)
-    #print(input_idx)
     inp = compset[input_idx]
 
     def previous_layer(layers, cur):
