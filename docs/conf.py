@@ -18,8 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = 'nnitp'
-copyright = '2020, Kenneth L. McMillan'
-author = 'Kenneth L. McMillan'
+copyright = '2020, Anonimized'
+author = 'Anonimized'
 master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------

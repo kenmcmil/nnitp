@@ -1,51 +1,63 @@
 # nnitp
 
+This is the supplementary material for the submission "Bayesian
+Interpolants as Explanations for Neural Inferences" to NIPS 2021.
+
 Nnitp is a tool for interpretability of neural network inferences
 using Bayesian interpolants. The basic technique is described in
-[this paper](https://arxiv.org/abs/2004.04198). It currently supports
+[redacted for anonymity]. It currently supports
 convolutional neural networks for image classification, using the
 [Pytorch](https://pytorch.org/) framework.
 
-Documentation on nnitp can be found
-[here](https://nnitp.readthedocs.io/en/latest/)
+Documentation on nnitp can be found in:
 
+    docs/_build/html/index.html
 
-# Install and Run
+# Installation
 
-The pretrained model can be downloaded [here](https://drive.google.com/file/d/1kha3hZs7cUwjqGwCIPVzagrdxmqXc23u/view?usp=sharing)
+Installation requires Python 3.8 or later. 
 
-Before install the program, run
+Before installing the program, run
 
-`pip install -r requirement.txt`
+    pip3 install -r requirement.txt
 
 To install the program, clone the repository and run
 
-`pip install .`
+    pip3 install .
 
-To run the program
+# Running the program:
 
-`nnitp`
+To run the program:
 
-Before you run the program, define environment varibale IMAGENETDIR and
-PRETRAINEDDIR as the directory to the imagenet dataset and pretrianed model
+    nnitp
+
+# Pre-trained models
+
+The pretrained modles used in the paper are tool large to include in
+the supplemental material. Take these steps to download and install
+the models:
+
+Step 1:  Downlaod the models from [here](https://drive.google.com/file/d/1kha3hZs7cUwjqGwCIPVzagrdxmqXc23u/view?usp=sharing).
+
+Step 2:  Unzip the archive:
+
+    unzip pretrained.zip
+
+Step 4:  Download the imagenet data set from [here](http://TODO).
+
+Step 5:  Unzip the archive:
+
+    unzip imagenet.zip
+
+Step 6:  Set environment variables to point to the model and dataset:
+
+    export IMAGENETDIR=`pwd`/imagenet
+    export PRETRAINED=`pwd`/pretrained
 
 
-`export IMAGENETDIR='path/to/imagenet`
+Note, the MNIST and CIFAR-10 datasets are downloaded automatically.
 
+# Reproducing the dtat in the paper
 
-`export PRETRAINED='path/to/pretrained`
+Steps for reproducing the data in the paper are in scripts/README.md
 
-
-# Contributing
-
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
