@@ -12,14 +12,21 @@ Documentation on nnitp can be found
 
 #  Run sweep script
 
-To generate the sweep data and plot for cifar10 from 50 experiments
-for layer 14, we can run
+To generate the sweep data and plot for mnist as shown in the paper,
 
 
-`pip sweep.py --experiment cifar10 --num_runs 50 --layer 14`
+`python3 sweep.py --experiment mnist --num_images 100 --layer 1 --all_category --sample_size 20000`
+
+This is a general evaluation of the nnitp method on mnist dataset.
+
+To get the partial data for the imagenet as shown in the paper,
 
 
-We can adjust gamma range and mu range through parameters such as
-*gamma_min*, *gamma_max*, *gamma_step* and *mu_min*, *mu_max*, *mu_step*
+`python3 sweep.py --experiment imagenet_vgg19 --num_images 5 --layer SELECTED --category 0 --sample_size 5000`
+
+We can get sweep graphs for different   **SELECTED** layer and then manually determine
+the sweet spot. As mentioned, this command only evaluate the experiment for single category
+and limited amount of data.
+
 
 
