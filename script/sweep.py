@@ -94,9 +94,9 @@ def plot(logs,mu, save_dir):
     yprec = logs["test_prec"]
     yrec = logs["test_recall"]
     ysize = logs["complexity"]
-    lines.append({'key':'precision, mu={:2.1%}'.format(mu), 'x':x, 'y':yprec,'axis':0})
-    lines.append({'key':'recall, mu={:2.1%}'.format(mu), 'x':x, 'y':yrec,'axis':1})
-    lines.append({'key':'complexity, mu={:2.1%}'.format(mu), 'x':x, 'y':ysize,'axis':2})
+    lines.append({'key':'precision, mu={:2.1}'.format(mu), 'x':x, 'y':yprec,'axis':0})
+    lines.append({'key':'recall, mu={:2.1}'.format(mu), 'x':x, 'y':yrec,'axis':1})
+    lines.append({'key':'complexity, mu={:2.1}'.format(mu), 'x':x, 'y':ysize,'axis':2})
 
     fig = plt.figure(figsize=(7,4.8))
     print(plt.rcParams.get('figure.figsize'))
@@ -134,7 +134,7 @@ def plot(logs,mu, save_dir):
         things.append(p)
 
 
-    host.legend(loc="upper left",fontsize="x-small")
+    host.legend(loc="center right",fontsize="x-small")
 
     host.axis["left"].label.set_color(things[0].get_color())
     par1.axis["right"].label.set_color(things[1].get_color())
