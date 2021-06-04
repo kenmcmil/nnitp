@@ -33,6 +33,7 @@ def main(param,summary):
     name = param["name"]
     size = param["size"]
     category = param["category"]
+    input_idx = param["input_idx"]
     if name == "imagenet_vgg19":
         kwargs = {"alpha":0.85, "ensemble_size":1}
     elif name == "cifar10":
@@ -53,7 +54,6 @@ def main(param,summary):
     layers = [avails[i] for i in layer_idxs if i>=0 and i <len(avails)]
     conc = output_category_predicate(data_model, category)
     compset = conc.sat(train_eval)
-    input_idx = random.randint(0, len(compset)-1)
     inp = compset[input_idx]
 
     def previous_layer(layers, cur):
@@ -88,12 +88,12 @@ def main(param,summary):
 def plot(logs,mu, save_dir):
     lines = []
     x = logs["gamma"]
-    yprec = logs["train_prec"]
-    yrec = logs["train_recall"]
+    yprec = logs["test_prec"]
+    yrec = logs["test_recall"]
     ysize = logs["complexity"]
-    lines.append({'key':'precision, mu={}'.format(mu), 'x':x, 'y':yprec,'axis':0})
-    lines.append({'key':'recall, mu={}'.format(mu), 'x':x, 'y':yrec,'axis':1})
-    lines.append({'key':'complexity, mu={}'.format(mu), 'x':x, 'y':ysize,'axis':2})
+    lines.append({'key':'precision, mu={:2.1}'.format(mu), 'x':x, 'y':yprec,'axis':0})
+    lines.append({'key':'recall, mu={:2.1}'.format(mu), 'x':x, 'y':yrec,'axis':1})
+    lines.append({'key':'complexity, mu={:2.1}'.format(mu), 'x':x, 'y':ysize,'axis':2})
 
     fig = plt.figure(figsize=(7,4.8))
     print(plt.rcParams.get('figure.figsize'))
@@ -131,7 +131,7 @@ def plot(logs,mu, save_dir):
         things.append(p)
 
 
-    host.legend(loc="upper left",fontsize="x-small")
+    host.legend(loc="center right",fontsize="x-small")
 
     host.axis["left"].label.set_color(things[0].get_color())
     par1.axis["right"].label.set_color(things[1].get_color())
@@ -148,16 +148,17 @@ def plot(logs,mu, save_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("sweep")
-    parser.add_argument('--experiment', type=str, default='cifar10', choices=['cifar10','imagenet_vgg19', 'mnist'],help='experiment to run')
+    parser.add_argument('--experiment', type=str, default='mnist', choices=['cifar10','imagenet_vgg19', 'mnist'],help='experiment to run')
     parser.add_argument('--gamma_min', type=float, default=0.45, help='minimum value of gamma for sweeping')
     parser.add_argument('--gamma_max', type=float, default=0.8, help='maximum value of gamma for sweeping')
     parser.add_argument('--gamma_step', type=float, default=0.05, help='step of gamma of sweeping')
     parser.add_argument('--mu_min', type=float, default=0.7, help='minimum value of gamma for sweeping')
     parser.add_argument('--mu_max', type=float, default=0.9, help='maximum value of gamma for sweeping')
     parser.add_argument('--mu_step', type=float, default=0.2, help='step of mu of sweeping')
-    parser.add_argument('--num_runs', type=int, default=5, help='num of runs to average')
-    parser.add_argument('--layer', type=int, default=14, help='layer selected for running experiment')
-    parser.add_argument('--sample_size', type=int, default=5000, help='num of sample size')
+    parser.add_argument('--num_images', type=int, default=5, help='num of images to average')
+    parser.add_argument('--layer', type=int, default=2, help='layer selected for running experiment')
+    parser.add_argument('--sample_size', type=int, default=20000, help='num of sample size')
+    parser.add_argument('--all_category', action = "store_true", help='whether to use all category')
     parser.add_argument('--category', type=int, default=0, help='index of selected category')
     parser.add_argument('--save_dir', type=str, default='./runs', help='path to save the result')
     parser.add_argument('--seed', type=int, default=123, help='random seed')
@@ -172,14 +173,15 @@ if __name__ == '__main__':
     if not os.path.exists(path):
         os.mkdir(path)
 
-    gamma_range = np.arange(args.gamma_min,args.gamma_max,args.gamma_step)
-    mu_range = np.arange(args.mu_min,args.mu_max,args.mu_step)
+    gamma_range = np.arange(args.gamma_min,args.gamma_max+0.1*args.gamma_step,args.gamma_step)
+    mu_range = np.arange(args.mu_min,args.mu_max+0.1*args.mu_step,args.mu_step)
+
+    categories = {"cifar10":10, "imagenet_vgg19":1000, "mnist":10}
 
     param = {}
     param["name"] = args.experiment
-    param["layer"]= args.layer
+    param["layer"]= args.layer+1
     param["size"]= args.sample_size
-    param["category"]= args.category
     for mu in mu_range:
         param["mu"]= mu
         logs = {"gamma":[],"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
@@ -187,11 +189,15 @@ if __name__ == '__main__':
 
             param["gamma"] = gamma
             summary = {"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
-            print(gamma)
-            print(mu)
-
-            for j in range(args.num_runs):
-                main(param, summary)
+            if args.all_category:
+                cats = range(categories[param["name"]])
+            else:
+                cats = [args.category]
+            for cat in cats:
+                param["category"] = cat
+                for j in range(args.num_images):
+                    param["input_idx"]=j
+                    main(param, summary)
 
             logs["gamma"].append(gamma)
             logs["train_prec"].append(mean(summary["train_prec"]))
