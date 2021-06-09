@@ -342,7 +342,7 @@ class NormalState(State):
             conjs = self.itp.conjs()
             for conj in conjs:
                 cone = self.top.model.pred_cone(conj)
-                imgs.extend(im[cur] for im in top_row for cur in cone)
+                #imgs.extend(im[cur] for im in top_row for cur in cone)
                 cones.update(cone)
             concs.extend(conjs)
         imgs = prepare_images(imgs)
@@ -350,9 +350,6 @@ class NormalState(State):
         for idx,img in enumerate(imgs):
             row,col = idx//cols, idx % cols
             sub = figure.add_subplot(rows, cols, idx + 1)
-            sub.imshow(img)
-            sub.axis('off')
-            sub.identifier = FigMetaData(top_idxs[col],top_row[col],concs[row])
             if row == 0:
                 for cidx,cone in enumerate(cones):
                     ycenter = cone[1]
@@ -360,9 +357,13 @@ class NormalState(State):
                     #ycenter = (slc[1].start + slc[1].stop)/2.0
                     #xcenter = (slc[2].start + slc[2].stop)/2.0
                     pixel = img[int(ycenter),int(xcenter)]
-                    c = 'black' if np.mean(pixel) >= 0.5 else 'white'
-                    sub.text(xcenter,ycenter,str(cidx),fontsize=11,
-                             verticalalignment='center', horizontalalignment='center', color=c)
+                    img[int(ycenter),int(xcenter)]*=0.9
+                    #c = 'black' if np.mean(pixel) >= 0.5 else 'white'
+                    #sub.text(xcenter,ycenter,str(cidx),fontsize=11,
+                    #         verticalalignment='center', horizontalalignment='center', color=c)
+            sub.imshow(img)
+            sub.axis('off')
+            sub.identifier = FigMetaData(top_idxs[col],top_row[col],concs[row])
         figure.subplots_adjust(wspace=0.1, hspace=0.1, left=0.0, right=1.0, top=1.0, bottom=0.0)
         figure.canvas.draw()
 

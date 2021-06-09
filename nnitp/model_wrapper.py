@@ -370,10 +370,15 @@ class Wrapper(object):
         while n1 > n:
             layer = self.get_layer(n1)
             layer_out = self.layer_shape(n1)
-            for i in range(n1):
+            inp = True
+            for i in range(self.n):
                 if self.E[i][n1]:
+                    inp = False
                     layer_inp = self.layer_shape(i)
                     break
+            if inp:
+                layer_inp = self.inp_shape
+
             cones = cone_lists[n1-n]
             if layer_inp == layer_out:
                 for i in range(n1):
@@ -458,9 +463,13 @@ class Wrapper(object):
                     #if new_cones == set():
                     #    print("equal")
                     #print(new_cones)
+                    inp = True
                     for i in range(self.n):
                         if self.E[i][n1]:
+                            inp = False
                             cone_lists[i-n].update(new_cones)
+                    if inp:
+                        cone_lists[0].update(new_cones)
 
 
             n1 -= 1
