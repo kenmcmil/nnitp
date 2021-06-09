@@ -11,10 +11,11 @@
 import torch
 import torch.nn as nn
 from typing import Tuple
+import itertools
 from .utils import unflatten_unit
 #from nnitp.models.models import Flatten
 from nnitp.models.models import Flatten
-#import nnitp.models.resnet as resnet
+import nnitp.models.resnet as resnet
 
 
 # This class is the interface to torch models.
@@ -30,7 +31,7 @@ def compute_all_activation(model,test, use_loader = False, name =None):
         if name.startswith("imagenet"):
             data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
         else:
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 10000, num_workers = 16, pin_memory = True)
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
             temp.append(model.compute_all_activation(inp))
         ret=[]
@@ -58,7 +59,7 @@ def compute_activation(model,lidx,test, use_loader = False, all_layer = False, n
         if name.startswith("imagenet"):
             data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
         else:
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 10000, num_workers = 16, pin_memory = True)
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
             ret.append(model.compute_activation(lidx, inp).cpu())
         ret = torch.cat(ret)
@@ -71,8 +72,8 @@ def compute_activation(model,lidx,test, use_loader = False, all_layer = False, n
 
 def get_layers(model, layers, layers_name):
     for name,layer in model.named_children():
-        #if isinstance(layer, nn.Sequential) or isinstance(layer, resnet.BasicBlockM) or isinstance(layer, resnet.Bottleneck):
-        if isinstance(layer, nn.Sequential):
+        if isinstance(layer, nn.Sequential) or isinstance(layer, resnet.BasicBlockM) or isinstance(layer, resnet.Bottleneck):
+        #if isinstance(layer, nn.Sequential):
             get_layers(layer, layers,layers_name)
         if len(list(layer.children()))==0:
             layers.append(layer)
@@ -103,8 +104,12 @@ class Wrapper(object):
         get_layers(self.model,self._layers,self._layers_names)
         self.layer_len = len(self._layers)
 
+        #print(self._layers)
+        #print(self._layers_names)
+
+
         self.init_shape()
-        #self.n,self.V,self.E = self.get_graph_resnet()
+        self.n,self.V,self.E = self.get_graph_resnet()
         #print(len(self.V))
         #print(len(self.E))
         #for v in self.V:
@@ -137,91 +142,91 @@ class Wrapper(object):
             self.mid_out.append(out.detach())
         return hook
 
-    #def get_graph_resnet(self):
-    #    D = dict()
-    #    n = 0
-    #    V = []
-    #    E = [[]]
+    def get_graph_resnet(self):
+        D = dict()
+        n = 0
+        V = []
+        E = [[]]
 
-    #    def record_hook(module, input, output):
-    #        key = id(module)
-    #        if key not in D:
-    #            D[key] = len(V)
-    #            V.append(module)
+        def record_hook(module, input, output):
+            key = id(module)
+            if key not in D:
+                D[key] = len(V)
+                V.append(module)
 
-    #    def add_edge(src, dst):
-    #        i = D[id(src)]
-    #        j = D[id(dst)]
-    #        E[i][j] = True
+        def add_edge(src, dst):
+            i = D[id(src)]
+            j = D[id(dst)]
+            E[i][j] = True
 
-    #    def add_chain(ls):
-    #        for i in range(len(ls) - 1):
-    #            add_edge(ls[i], ls[i + 1])
+        def add_chain(ls):
+            for i in range(len(ls) - 1):
+                add_edge(ls[i], ls[i + 1])
 
-    #    hooks = []
-    #    for module in self._layers:
-    #        hooks.append(module.register_forward_hook(record_hook))
-    #    x = torch.randn(self.inp_shape).to(self.device)
-    #    y = self.model(x)
-    #    for hook in hooks:
-    #        hook.remove()
+        hooks = []
+        for module in self._layers:
+            hooks.append(module.register_forward_hook(record_hook))
+        x = torch.randn(self.inp_shape).to(self.device)
+        y = self.model(x)
+        for hook in hooks:
+            hook.remove()
 
-    #    n = len(V)
-    #    E = [([False] * n) for i in range(n)]
+        n = len(V)
+        E = [([False] * n) for i in range(n)]
 
-    #    chain = [self.model.conv1, self.model.bn1, self.model.relu1]
-    #    add_chain(chain)
+        chain = [self.model.conv1, self.model.bn1, self.model.relu1]
+        add_chain(chain)
 
-    #    src = [self.model.relu1]
-    #    for module in self.model.modules():
-    #        if isinstance(module, resnet.BasicBlockM):
-    #            chain = [module.conv1, module.bn1, module.relu1,
-    #                     module.conv2, module.bn2, module.relu2]
-    #            add_chain(chain)
-    #            dst = [module.conv1]
-    #            src_ = [module.relu2]
+        src = [self.model.relu1]
+        for module in self.model.modules():
+            if isinstance(module, resnet.BasicBlockM):
+                chain = [module.conv1, module.bn1, module.relu1,
+                         module.conv2, module.bn2, module.relu2]
+                add_chain(chain)
+                dst = [module.conv1]
+                src_ = [module.relu2]
 
-    #            if module.downsample is not None:
-    #                chain = list(module.downsample.children())
-    #                add_chain(chain)
-    #                dst.append(chain[0])
-    #                add_edge(chain[-1], module.relu2)
-    #            else:
-    #                dst.append(module.relu2)
+                if module.downsample is not None:
+                    chain = list(module.downsample.children())
+                    add_chain(chain)
+                    dst.append(chain[0])
+                    add_edge(chain[-1], module.relu2)
+                else:
+                    dst.append(module.relu2)
 
-    #            for s in src:
-    #                for d in dst:
-    #                    add_edge(s, d)
-    #            src = src_
-    #            dst = []
+                for s in src:
+                    for d in dst:
+                        add_edge(s, d)
+                src = src_
+                dst = []
 
-    #        if isinstance(module, resnet.Bottleneck):
-    #            chain = [module.conv1, module.bn1, module.relu1,
-    #                     module.conv2, module.bn2, module.relu2,
-    #                     module.conv3, module.bn3, module.relu3]
-    #            add_chain(chain)
-    #            dst = [module.conv1]
-    #            src_ = [module.relu3]
+            if isinstance(module, resnet.Bottleneck):
+                chain = [module.conv1, module.bn1, module.relu1,
+                         module.conv2, module.bn2, module.relu2,
+                         module.conv3, module.bn3, module.relu3]
+                add_chain(chain)
+                dst = [module.conv1]
+                src_ = [module.relu3]
 
-    #            if module.downsample is not None:
-    #                chain = list(module.downsample.children())
-    #                add_chain(chain)
-    #                dst.append(chain[0])
-    #                add_edge(chain[-1], module.relu3)
-    #            else:
-    #                dst.append(module.relu3)
+                if module.downsample is not None:
+                    chain = list(module.downsample.children())
+                    add_chain(chain)
+                    dst.append(chain[0])
+                    add_edge(chain[-1], module.relu3)
+                else:
+                    dst.append(module.relu3)
 
-    #            for s in src:
-    #                for d in dst:
-    #                    add_edge(s, d)
-    #            src = src_
-    #            dst = []
-    #    chain = [self.model.avgpool, self.model.flatten, self.model.fc]
-    #    for s in src:
-    #        add_edge(s, chain[0])
-    #    add_chain(chain)
+                for s in src:
+                    for d in dst:
+                        add_edge(s, d)
+                src = src_
+                dst = []
+        chain = [self.model.avgpool, self.model.flatten, self.model.fc]
+        for s in src:
+            add_edge(s, chain[0])
+        add_chain(chain)
 
-    #    return n, V, E
+        return n, V, E
     # To use this model in given model in a thread, we have to set it
     # up as the default Keras session and also set up the tensorflow
     # default graph. This method returns a context object suitable for
@@ -302,152 +307,166 @@ class Wrapper(object):
 
     # TODO: change the `slc` argument to a list of python slice objects.
 
-    def get_cone(self,n,n1,slc) -> Tuple:
-        #print("----------start-----------")
-        model = self.model
-        model.eval()
-        while n1 > n:
-            layer = self.get_layer(n1)
-            layer_inp = self.layer_shape(n1-1)
-            layer_out = self.layer_shape(n1)
-            if isinstance(layer,nn.Conv2d) or isinstance(layer, nn.MaxPool2d):
-                c_in = layer_inp[1]
-                H = layer_inp[2]
-                W = layer_inp[3]
-                padding = layer.padding
-                dilation = layer.dilation
-                stride = layer.stride
-                kernel = layer.kernel_size
-                if isinstance(padding,int):
-                    padding = tuple([padding, padding])
-                if isinstance(kernel,int):
-                    kernel = tuple([kernel, kernel])
-                if isinstance(dilation,int):
-                    dilation = tuple([dilation, dilation])
-                if isinstance(stride,int):
-                    stride = tuple([stride, stride])
-
-
-                H_min = max(0, slc[0][1]*stride[0]-padding[0])
-                W_min = max(0,slc[0][2]*stride[1]-padding[1])
-                H_max = min(H-1, slc[1][1]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0])
-                W_max = min(W-1, slc[1][2]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1])
-
-                if isinstance(layer, nn.MaxPool2d):
-                    slc = ((slc[0][0], H_min, W_min),
-                            (slc[1][0],H_max,W_max))
-                else:
-                    slc = ((0, H_min, W_min),
-                            (c_in-1,H_max,W_max))
-
-            elif isinstance(layer,Flatten):
-                shape = layer_inp[1:]
-                slc = (unflatten_unit(shape,slc[0]),unflatten_unit(shape,slc[1]))
-            elif isinstance(layer,nn.Linear):
-                shape = layer_inp[1:]
-                slc = (tuple(0 for x in shape),tuple(x-1 for x in shape))
-            elif layer_inp == layer_out:
-                pass
-            else:
-                print ("Cannot compute dependency cone for layer of type {}.".format(type(layer)))
-                exit(1)
-            n1 -= 1
-        return tuple(slice(x,y+1) for x,y in zip(slc[0],slc[1]))
-
-
-
-
     #def get_cone(self,n,n1,slc) -> Tuple:
     #    #print("----------start-----------")
     #    model = self.model
     #    model.eval()
-    #    slc_lists = [[] for i in range(n1-n+1)]
-    #    slc_lists[-1] = [slc]
     #    while n1 > n:
     #        layer = self.get_layer(n1)
     #        layer_inp = self.layer_shape(n1-1)
     #        layer_out = self.layer_shape(n1)
-    #        print(layer)
-    #        slcs = slc_lists[n1-n]
-    #        print(len(slcs))
-    #        for slc in slcs:
-    #            if isinstance(layer,nn.Conv2d) or isinstance(layer, nn.MaxPool2d):
-    #                c_in = layer_inp[1]
-    #                H = layer_inp[2]
-    #                W = layer_inp[3]
-    #                padding = layer.padding
-    #                dilation = layer.dilation
-    #                stride = layer.stride
-    #                kernel = layer.kernel_size
-    #                if isinstance(padding,int):
-    #                    padding = tuple([padding, padding])
-    #                if isinstance(kernel,int):
-    #                    kernel = tuple([kernel, kernel])
-    #                if isinstance(dilation,int):
-    #                    dilation = tuple([dilation, dilation])
-    #                if isinstance(stride,int):
-    #                    stride = tuple([stride, stride])
+    #        if isinstance(layer,nn.Conv2d) or isinstance(layer, nn.MaxPool2d):
+    #            c_in = layer_inp[1]
+    #            H = layer_inp[2]
+    #            W = layer_inp[3]
+    #            padding = layer.padding
+    #            dilation = layer.dilation
+    #            stride = layer.stride
+    #            kernel = layer.kernel_size
+    #            if isinstance(padding,int):
+    #                padding = tuple([padding, padding])
+    #            if isinstance(kernel,int):
+    #                kernel = tuple([kernel, kernel])
+    #            if isinstance(dilation,int):
+    #                dilation = tuple([dilation, dilation])
+    #            if isinstance(stride,int):
+    #                stride = tuple([stride, stride])
 
 
-    #                H_min = max(0, slc[0][1]*stride[0]-padding[0])
-    #                W_min = max(0,slc[0][2]*stride[1]-padding[1])
-    #                H_max = min(H-1, slc[1][1]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0])
-    #                W_max = min(W-1, slc[1][2]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1])
+    #            H_min = max(0, slc[0][1]*stride[0]-padding[0])
+    #            W_min = max(0,slc[0][2]*stride[1]-padding[1])
+    #            H_max = min(H-1, slc[1][1]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0])
+    #            W_max = min(W-1, slc[1][2]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1])
 
-    #                if isinstance(layer, nn.MaxPool2d):
-    #                    new_slc = ((slc[0][0], H_min, W_min),
-    #                            (slc[1][0],H_max,W_max))
-    #                else:
-    #                    new_slc = ((0, H_min, W_min),
-    #                            (c_in-1,H_max,W_max))
-
-    #            elif isinstance(layer, nn.AvgPool2d):
-    #                c_in = layer_inp[1]
-    #                H = layer_inp[2]
-    #                W = layer_inp[3]
-    #                padding = layer.padding
-    #                stride = layer.stride
-    #                kernel = layer.kernel_size
-    #                if isinstance(padding,int):
-    #                    padding = tuple([padding, padding])
-    #                if isinstance(kernel,int):
-    #                    kernel = tuple([kernel, kernel])
-    #                if isinstance(stride,int):
-    #                    stride = tuple([stride, stride])
-
-
-    #                H_min = max(0, slc[0][1]*stride[0]-padding[0])
-    #                W_min = max(0,slc[0][2]*stride[1]-padding[1])
-    #                H_max = min(H-1, slc[1][1]*stride[0]+(kernel[0]-1)-padding[0])
-    #                W_max = min(W-1, slc[1][2]*stride[1]+(kernel[1]-1)-padding[1])
-
-    #                new_slc = ((slc[0][0], H_min, W_min),
-    #                            (slc[1][0],H_max,W_max))
-
-    #            elif isinstance(layer,Flatten):
-    #                shape = layer_inp[1:]
-    #                new_slc = (unflatten_unit(shape,slc[0]),unflatten_unit(shape,slc[1]))
-    #            elif isinstance(layer,nn.Linear):
-    #                shape = layer_inp[1:]
-    #                new_slc = (tuple(0 for x in shape),tuple(x-1 for x in shape))
-    #            elif layer_inp == layer_out:
-    #                pass
+    #            if isinstance(layer, nn.MaxPool2d):
+    #                slc = ((slc[0][0], H_min, W_min),
+    #                        (slc[1][0],H_max,W_max))
     #            else:
-    #                print ("Cannot compute dependency cone for layer of type {}.".format(type(layer)))
-    #                exit(1)
-    #            #layer_id = id(layer)
-    #            for i in range(self.n):
-    #                if self.E[i][n1]:
-    #                    slc_lists[i-n].append(new_slc)
+    #                slc = ((0, H_min, W_min),
+    #                        (c_in-1,H_max,W_max))
 
-
+    #        elif isinstance(layer,Flatten):
+    #            shape = layer_inp[1:]
+    #            slc = (unflatten_unit(shape,slc[0]),unflatten_unit(shape,slc[1]))
+    #        elif isinstance(layer,nn.Linear):
+    #            shape = layer_inp[1:]
+    #            slc = (tuple(0 for x in shape),tuple(x-1 for x in shape))
+    #        elif layer_inp == layer_out:
+    #            pass
+    #        else:
+    #            print ("Cannot compute dependency cone for layer of type {}.".format(type(layer)))
+    #            exit(1)
     #        n1 -= 1
-    #    slcs = slc_lists[0]
-    #    ret = []
-    #    for slc in slcs:
-    #        ret.append(tuple(slice(x,y+1) for x,y in zip(slc[0], slc[1])))
-    #    return ret
-    #    #return tuple(slice(x,y+1) for x,y in zip(slc[0],slc[1]))
+    #    return tuple(slice(x,y+1) for x,y in zip(slc[0],slc[1]))
+
+
+
+
+    def get_cone(self,n,n1,cone) -> Tuple:
+        model = self.model
+        model.eval()
+        cone_lists = [set() for i in range(n1-n+1)]
+        cone_lists[-1].update(cone)
+        while n1 > n:
+            layer = self.get_layer(n1)
+            layer_out = self.layer_shape(n1)
+            for i in range(n1):
+                if self.E[i][n1]:
+                    layer_inp = self.layer_shape(i)
+                    break
+            cones = cone_lists[n1-n]
+            if layer_inp == layer_out:
+                for i in range(n1):
+                    if self.E[i][n1]:
+                        cone_lists[i-n].update(cones)
+            else:
+                for cone in cones:
+                    if isinstance(layer,nn.Conv2d) or isinstance(layer, nn.MaxPool2d):
+                        C_in = layer_inp[1]
+                        H = layer_inp[2]
+                        W = layer_inp[3]
+                        padding = layer.padding
+                        dilation = layer.dilation
+                        stride = layer.stride
+                        kernel = layer.kernel_size
+                        if isinstance(padding,int):
+                            padding = tuple([padding, padding])
+                        if isinstance(kernel,int):
+                            kernel = tuple([kernel, kernel])
+                        if isinstance(dilation,int):
+                            dilation = tuple([dilation, dilation])
+                        if isinstance(stride,int):
+                            stride = tuple([stride, stride])
+
+
+                        H_min = max(0, cone[1]*stride[0]-padding[0])
+                        W_min = max(0,cone[2]*stride[1]-padding[1])
+                        H_max = min(H-1, cone[1]*stride[0]+dilation[0]*(kernel[0]-1)-padding[0])
+                        W_max = min(W-1, cone[2]*stride[1]+dilation[1]*(kernel[1]-1)-padding[1])
+
+                        if isinstance(layer, nn.MaxPool2d):
+                            C_min = cone[0]
+                            C_max = cone[0]
+                        else:
+                            C_min = 0
+                            C_max = C_in - 1
+                        new_cones = [range(C_min,C_max+1), range(H_min, H_max+1), range(W_min, W_max+1)]
+
+                        new_cones = set(itertools.product(*new_cones))
+
+                    elif isinstance(layer, nn.AvgPool2d):
+                        c_in = layer_inp[1]
+                        H = layer_inp[2]
+                        W = layer_inp[3]
+                        padding = layer.padding
+                        stride = layer.stride
+                        kernel = layer.kernel_size
+                        if isinstance(padding,int):
+                            padding = tuple([padding, padding])
+                        if isinstance(kernel,int):
+                            kernel = tuple([kernel, kernel])
+                        if isinstance(stride,int):
+                            stride = tuple([stride, stride])
+
+
+                        H_min = max(0, cone[1]*stride[0]-padding[0])
+                        W_min = max(0, cone[2]*stride[1]-padding[1])
+                        H_max = min(H-1, cone[1]*stride[0]+(kernel[0]-1)-padding[0])
+                        W_max = min(W-1, cone[2]*stride[1]+(kernel[1]-1)-padding[1])
+
+                        C_min = cone[0]
+                        C_max = cone[0]
+                        new_cones = [range(C_min,C_max+1), range(H_min, H_max+1), range(W_min, W_max+1)]
+
+                        new_cones = set(itertools.product(*new_cones))
+
+                    elif isinstance(layer,Flatten):
+                        shape = layer_inp[1:]
+                        new_cones = {unflatten_unit(shape,cone)}
+
+                    elif isinstance(layer,nn.Linear):
+                        shape = layer_inp[1:]
+                        #new_slc = (tuple(0 for x in shape),tuple(x-1 for x in shape))
+                        new_cones = []
+                        for x in shape:
+                            new_cones.append(range(x))
+                        new_cones = set(itertools.product(*new_cones))
+                    else:
+                        print ("Cannot compute dependency cone for layer of type {}.".format(type(layer)))
+                        exit(1)
+                    #layer_id = id(layer)
+                    #if new_cones == set():
+                    #    print("equal")
+                    #print(new_cones)
+                    for i in range(self.n):
+                        if self.E[i][n1]:
+                            cone_lists[i-n].update(new_cones)
+
+
+            n1 -= 1
+        cones = cone_lists[0]
+        return cones
+        #return tuple(slice(x,y+1) for x,y in zip(slc[0],slc[1]))
 
 
 

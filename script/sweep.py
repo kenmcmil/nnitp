@@ -34,11 +34,11 @@ def main(param,summary):
     size = param["size"]
     category = param["category"]
     input_idx = param["input_idx"]
-    if name == "imagenet_vgg19":
+    if name.startswith("imagenet"):
         kwargs = {"alpha":0.85, "ensemble_size":1}
-    elif name == "cifar10":
+    elif name.startswith("cifar10"):
         kwargs = {"alpha":0.95, "ensemble_size":1}
-    elif name == "mnist":
+    elif name.startswith("mnist"):
         kwargs = {"alpha":0.98, "ensemble_size":1}
     kwargs["mu"] = param["mu"]
     kwargs["gamma"] = param["gamma"]
@@ -51,6 +51,7 @@ def main(param,summary):
     layer_idxs = [param["layer"]]
     avails = ['-1:input'] + ['{:0>2}'.format(i)+':'+ l
                             for i,l in enumerate(data_model.model.layers)]
+    print(avails)
     layers = [avails[i] for i in layer_idxs if i>=0 and i <len(avails)]
     conc = output_category_predicate(data_model, category)
     compset = conc.sat(train_eval)
@@ -148,7 +149,7 @@ def plot(logs,mu, save_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("sweep")
-    parser.add_argument('--experiment', type=str, default='mnist', choices=['cifar10','imagenet_vgg19', 'mnist'],help='experiment to run')
+    parser.add_argument('--experiment', type=str, default='mnist', choices=['cifar10','imagenet_vgg19', 'mnist','cifar10_resnet34'],help='experiment to run')
     parser.add_argument('--gamma_min', type=float, default=0.45, help='minimum value of gamma for sweeping')
     parser.add_argument('--gamma_max', type=float, default=0.8, help='maximum value of gamma for sweeping')
     parser.add_argument('--gamma_step', type=float, default=0.05, help='step of gamma of sweeping')

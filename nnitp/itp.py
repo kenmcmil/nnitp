@@ -8,6 +8,7 @@
 
 import numpy as np # type: ignore
 import os
+import itertools
 from typing import Tuple,List
 from abc import ABCMeta, abstractmethod
 
@@ -59,8 +60,8 @@ class Predicate(metaclass=ABCMeta):
         return [self]
     @abstractmethod
     def cone(self,shape:Tuple[int,...]): pass
-        
-    
+
+
 # A bound predicate states that `var >= val`, where `var` is a
 # variable `val` is a numeric value, when `pos` is true. When `pos` is
 # false, it represents `var <= val`. Here, `var` is an index into a
@@ -84,14 +85,24 @@ class BoundPredicate(Predicate):
                 ('>=' if self.pos else '<=') + str(self.val))
     def cone(self,shape:Tuple[int,...]):
         idx:Tuple = self.var if isinstance(self.var,tuple) else tuple([self.var])
-        return tuple(slice(n,n+1) for n in idx)
+        ret = set()
+        ret.add(idx)
+        return ret
+        #return tuple(slice(n,n+1) for n in idx)
     
-def cone_join(slices):
-    lbs = zip(tuple(x.start for x in y) for y in slices)
-    lb = tuple(min(x) for x in lbs)
-    ubs = zip(tuple(x.end for x in y) for y in slices)
-    ub = tuple(max(x) for x in ubs)
-    return (slice(x,y) for x,y in zip(lb,ub))
+#def cone_join(slices):
+#    lbs = zip(tuple(x.start for x in y) for y in slices)
+#    lb = tuple(min(x) for x in lbs)
+#    ubs = zip(tuple(x.end for x in y) for y in slices)
+#    ub = tuple(max(x) for x in ubs)
+#    return (slice(x,y) for x,y in zip(lb,ub))
+
+
+def cone_join(shapes):
+    ret = set()
+    for shape in shapes:
+        ret.update(shape)
+    return ret
 
 # Conjunction of predicates.
 
@@ -148,7 +159,11 @@ class is_max(Predicate):
     def __repr__(self):
         return 'is_max({})'.format(self.unit)
     def cone(self,shape:Tuple[int,...]):
-        res = tuple(slice(0,x) for x in  shape)
+        #res = tuple(slice(0,x) for x in  shape)
+        res = []
+        for x in shape:
+            res.append(range(x))
+        res = set(itertools.product(*res))
         return res
 
 class LayerPredicate(object):

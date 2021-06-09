@@ -187,6 +187,10 @@ def ensembleseparator(A,onset,offset,epsilon,gamma,mu):
 
 def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]]:
     shape = A.shape[1:]
+    #print(shape)
+    #print(A.shape)
+    #print(onset.shape)
+    #print(offset.shape)
     if len(shape) > 1:
 #        x = np.ravel(x)
         A = A.reshape(len(A),-1)
@@ -204,14 +208,32 @@ def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]
 # of the input tensors. If `cone` is None, no slicing is done.
 #
 
+
+def indice_cone(data, cone):
+    ret = []
+    for idx in list(cone):
+        ret.append(data[(slice(None),)+idx])
+    return np.array(ret).T
+
+
 def slice_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
     if cone is not None:
-        ndoffset = ndoffset[(slice(None),)+cone]
-        ndonset = ndonset[(slice(None),)+cone]
-        ndA = ndA[(slice(None),)+cone]
+        #ndoffset = ndoffset[(slice(None),)+cone]
+        #ndonset = ndonset[(slice(None),)+cone]
+        #ndA = ndA[(slice(None),)+cone]
+        ndoffset = indice_cone(ndoffset, cone)
+        ndonset = indice_cone(ndonset, cone)
+        ndA = indice_cone(ndA, cone)
+        #print(ndA.shape)
+        #print(ndonset.shape)
+        #print(ndoffset.shape)
     res = ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu)
     if cone is not None:
-        res = unslice_itp(cone,res)
+        #res = unslice_itp(cone,res)
+        #for idx,val,pos in res:
+            #print(idx)
+            #break
+        res = {(list(cone)[idx[0]], val, pos) for idx,val,pos in res}
     return res
 
 # Internal implementation of `interpolant()`, see below. If we are given weights,
@@ -310,16 +332,17 @@ def describe_error(s,error):
 # Get the slice at layer `n` (-1 for input) that is relevant to a
 # slice `slc` at layer `n1`.
 
-def get_cone(model,n,n1,slc) -> Tuple:
-    return model.get_cone(n,n1,slc) # type: ignore
+#def get_cone(model,n,n1,slc) -> Tuple:
+#    return model.get_cone(n,n1,slc) # type: ignore
+def get_cone(model,n,n1,cone) -> Tuple:
+    return model.get_cone(n,n1,cone) # type: ignore
     
 # Get the slice of layer `layer` that is relevant to LayerPredicate `lpred`.
 
 def get_pred_cone(model,lpred,layer = -1) -> Tuple:
     shape = model.layer_shape(lpred.layer)
     cone = lpred.pred.cone(shape[1:])
-    slc = (tuple(x.start for x in cone),tuple(x.stop-1 for x in cone))
-    return get_cone(model,layer,lpred.layer,slc)
+    return get_cone(model,layer,lpred.layer,cone)
 
 # Given a predicate `pred` over a slice `slc`, return the
 # corresponding predicate over the whole tensor.
