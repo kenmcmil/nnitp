@@ -12,6 +12,9 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 import itertools
+import time
+import numpy as np
+from sklearn.utils import resample
 from .utils import unflatten_unit
 #from nnitp.models.models import Flatten
 from nnitp.models.models import Flatten
@@ -19,9 +22,23 @@ import nnitp.models.resnet as resnet
 
 
 # This class is the interface to torch models.
-def sample_dataset(data, size):
-    size = min(len(data), size)
-    data = torch.utils.data.Subset(data, range(size))
+def sample_dataset(data, size, category = None):
+    targets = np.array(data.targets)
+    size = min(size, len(targets))
+    idx = []
+    i1 = np.where(targets == category)[0]
+    i2 = np.where(targets != category)[0]
+    i2 = resample(i2, n_samples= size-len(i1),replace =False, stratify = targets[i2])
+    #i2 = np.random.choice(i2, size-len(i1))
+    idx = np.concatenate((i1,i2))
+    #new_data =[]
+    #for i, x in enumerate(targets):
+    #    if x == category:
+    #        idx.append(x)
+    #    else:
+    #        new_data.append((i,x))
+    #size = min(len(data), size)
+    data = torch.utils.data.Subset(data, idx)
     return data
 
 
@@ -53,18 +70,21 @@ def compute_all_activation(model,test, use_loader = False, name =None):
 # data `test`. Layer index `-1` stands for the input data.
 #
 
-def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
+def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None, cone = None):
     if use_loader:
         ret = []
         if name.startswith("imagenet"):
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 1000, num_workers = 16, pin_memory = True)
         else:
             data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
-            ret.append(model.compute_activation(lidx, inp).cpu())
+            s = time.time()
+            ret.append(model.compute_activation(lidx, inp, cone).cpu())
+            e = time.time()
+            print(e-s)
         ret = torch.cat(ret)
     else:
-        ret = model.compute_activation(lidx, test)
+        ret = model.compute_activation(lidx, testi, cone)
     return ret.cpu().numpy()
 
 #get all layer and its name from model
@@ -101,6 +121,7 @@ class Wrapper(object):
         self.layer_shapes = []
         self._layers=[]
         self._layers_names=[]
+        self._selected_sample = {}
         get_layers(self.model,self._layers,self._layers_names)
         self.layer_len = len(self._layers)
 
@@ -137,9 +158,27 @@ class Wrapper(object):
         return hook
 
 
-    def forward_hook(self,layer_idx):
-        def hook(module,inp,out):
-            self.mid_out.append(out.detach())
+    def forward_hook(self,layer_idx, cone = None):
+        #if str(layer_idx) in self._selected_sample:
+        #    idxs = self._selected_sample[str(layer_idx)]
+        #else:
+        #    shape = self.layer_shapes[layer_idx]
+        #    idxs = [slice(0,shape[0],1)]
+        #    for i in shape[1:]:
+        #        idxs.append(slice(0,i,2))
+        #    self._selected_sample[str(layer_idx)] = idxs
+        def indice_cone(data, cone):
+            ret = []
+            for idx in list(cone):
+                ret.append(data[(slice(None),)+idx])
+            return torch.stack(ret)
+
+        if cone:
+            def hook(module,inp,out):
+                self.mid_out.append(indice_cone(out.detach().cpu(),cone))
+        else:
+            def hook(module,inp,out):
+                self.mid_out.append(out.detach().cpu())
         return hook
 
     def get_graph_resnet(self):
@@ -260,7 +299,7 @@ class Wrapper(object):
 
         return ret
 
-    def compute_activation(self,lidx,test):
+    def compute_activation(self,lidx,test,cone =None):
         self.model.eval()
         if not torch.is_tensor(test):
             test = torch.tensor(test)
@@ -269,7 +308,7 @@ class Wrapper(object):
             return test
         self.mid_out = []
         l = self.get_layer(lidx)
-        self.fhook = l.register_forward_hook(self.forward_hook(lidx))
+        self.fhook = l.register_forward_hook(self.forward_hook(lidx, cone))
         with torch.no_grad():
           self.model(test)
         self.fhook.remove()
@@ -415,6 +454,28 @@ class Wrapper(object):
                         else:
                             C_min = 0
                             C_max = C_in - 1
+                        new_cones = [range(C_min,C_max+1), range(H_min, H_max+1), range(W_min, W_max+1)]
+
+                        new_cones = set(itertools.product(*new_cones))
+                    #Not accurate, the implementation of adaptiveavgpool is unclear
+                    elif isinstance(layer, nn.AdaptiveAvgPool2d):
+                        c_in = layer_inp[1]
+                        H_in = layer_inp[2]
+                        W_in = layer_inp[3]
+                        H_out = layer_out[2]
+                        W_out = layer_out[3]
+                        padding = (0,0)
+                        stride = [H_in//H_out, W_in//W_out]
+                        kernel = [H_in - (H_out-1)*stride[0], W_in - (W_out-1)*stride[1]]
+
+
+                        H_min = max(0, cone[1]*stride[0]-padding[0])
+                        W_min = max(0, cone[2]*stride[1]-padding[1])
+                        H_max = min(H_in-1, cone[1]*stride[0]+(kernel[0]-1)-padding[0])
+                        W_max = min(W_in-1, cone[2]*stride[1]+(kernel[1]-1)-padding[1])
+
+                        C_min = cone[0]
+                        C_max = cone[0]
                         new_cones = [range(C_min,C_max+1), range(H_min, H_max+1), range(W_min, W_max+1)]
 
                         new_cones = set(itertools.product(*new_cones))

@@ -36,12 +36,12 @@ class Stats(object):
         recall = (N - F)/P if P != 0 else None
         return ("On {} set: F = {}, N = {}, P = {}, precision={}, recall={}\n"
                 .format(s,F,N,P,prec,recall))
-        
+
     def __str__(self):
         return (self._describe_acc('training',self.train_acc) +
                 self._describe_acc('test',self.test_acc) +
                 'Compute time: {}\n'.format(self.time))
-        
+
 #
 # Evaluate a predicate on a vector. 
 #
@@ -187,7 +187,6 @@ def ensembleseparator(A,onset,offset,epsilon,gamma,mu):
 
 def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]]:
     shape = A.shape[1:]
-    #print(shape)
     #print(A.shape)
     #print(onset.shape)
     #print(offset.shape)
@@ -196,13 +195,17 @@ def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]
         A = A.reshape(len(A),-1)
         onset = onset.reshape(len(onset),-1)
         offset = offset.reshape(len(offset),-1)
+    #print("------------")
+    #print(A.shape)
+    #print(onset.shape)
+    #print(offset.shape)
     res = ensembleseparator(A,onset,offset,epsilon,gamma,mu)
     if len(shape) > 1:
         res = [(unflatten_unit(shape,idx),val,pos) for idx,val,pos in res]
     else:
         res = [((idx,),val,pos) for idx,val,pos in res]
     return res # type: ignore
-    
+
 #
 # Same as above, but separator is expressed only over a slice `cone`
 # of the input tensors. If `cone` is None, no slicing is done.

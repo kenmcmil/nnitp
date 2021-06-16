@@ -45,7 +45,7 @@ def main(param,summary):
 
     data_model = DataModel()
     data_model.load(name)
-    data_model.set_sample_size(size)
+    data_model.set_sample_size(size, category = category)
     train_eval = data_model._train_eval
     test_eval = data_model._test_eval
     layer_idxs = [param["layer"]]
@@ -56,6 +56,7 @@ def main(param,summary):
     conc = output_category_predicate(data_model, category)
     compset = conc.sat(train_eval)
     inp = compset[input_idx]
+
 
     def previous_layer(layers, cur):
         cur_layers = [int(x.split(':')[0]) for x in layers]
@@ -149,7 +150,7 @@ def plot(logs,mu, save_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("sweep")
-    parser.add_argument('--experiment', type=str, default='mnist', choices=['cifar10','imagenet_vgg19', 'mnist','cifar10_resnet34'],help='experiment to run')
+    parser.add_argument('--experiment', type=str, default='mnist', choices=['cifar10','imagenet_vgg19', "imagenet_resnet34", 'mnist','cifar10_resnet34'],help='experiment to run')
     parser.add_argument('--gamma_min', type=float, default=0.45, help='minimum value of gamma for sweeping')
     parser.add_argument('--gamma_max', type=float, default=0.8, help='maximum value of gamma for sweeping')
     parser.add_argument('--gamma_step', type=float, default=0.05, help='step of gamma of sweeping')
@@ -198,7 +199,10 @@ if __name__ == '__main__':
                 param["category"] = cat
                 for j in range(args.num_images):
                     param["input_idx"]=j
+                    s = time.time()
                     main(param, summary)
+                    e = time.time()
+                    print("total time : %d"%(e-s))
 
             logs["gamma"].append(gamma)
             logs["train_prec"].append(mean(summary["train_prec"]))

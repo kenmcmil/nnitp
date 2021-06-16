@@ -37,9 +37,9 @@ def get_data():
 # Fetch the trained model
 
 def get_model():
-    model = resnet34()
+    model = resnet34(num_classes = 10)
     pretraineddir = os.environ["PRETRAINEDDIR"]
-    modeldir = os.path.join(pretraineddir, "resnet34.pth")
+    modeldir = os.path.join(pretraineddir, "resnet34_cifar10.pth")
     model.load_state_dict(torch.load(modeldir))
     return Wrapper(model, [1,3,32,32])
 
