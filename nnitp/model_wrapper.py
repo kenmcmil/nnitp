@@ -70,7 +70,7 @@ def compute_all_activation(model,test, use_loader = False, name =None):
 # data `test`. Layer index `-1` stands for the input data.
 #
 
-def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None, cone = None):
+def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
     if use_loader:
         ret = []
         if name.startswith("imagenet"):
@@ -79,12 +79,12 @@ def compute_activation(model,lidx,test, use_loader = False, all_layer = False, n
             data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
             s = time.time()
-            ret.append(model.compute_activation(lidx, inp, cone).cpu())
+            ret.append(model.compute_activation(lidx, inp).cpu())
             e = time.time()
             print(e-s)
         ret = torch.cat(ret)
     else:
-        ret = model.compute_activation(lidx, testi, cone)
+        ret = model.compute_activation(lidx, test)
     return ret.cpu().numpy()
 
 #get all layer and its name from model
@@ -158,7 +158,7 @@ class Wrapper(object):
         return hook
 
 
-    def forward_hook(self,layer_idx, cone = None):
+    def forward_hook(self,layer_idx):
         #if str(layer_idx) in self._selected_sample:
         #    idxs = self._selected_sample[str(layer_idx)]
         #else:
@@ -167,18 +167,8 @@ class Wrapper(object):
         #    for i in shape[1:]:
         #        idxs.append(slice(0,i,2))
         #    self._selected_sample[str(layer_idx)] = idxs
-        def indice_cone(data, cone):
-            ret = []
-            for idx in list(cone):
-                ret.append(data[(slice(None),)+idx])
-            return torch.stack(ret)
-
-        if cone:
-            def hook(module,inp,out):
-                self.mid_out.append(indice_cone(out.detach().cpu(),cone))
-        else:
-            def hook(module,inp,out):
-                self.mid_out.append(out.detach().cpu())
+        def hook(module,inp,out):
+            self.mid_out.append(out.detach().cpu())
         return hook
 
     def get_graph_resnet(self):
@@ -299,7 +289,7 @@ class Wrapper(object):
 
         return ret
 
-    def compute_activation(self,lidx,test,cone =None):
+    def compute_activation(self,lidx,test):
         self.model.eval()
         if not torch.is_tensor(test):
             test = torch.tensor(test)
@@ -308,7 +298,7 @@ class Wrapper(object):
             return test
         self.mid_out = []
         l = self.get_layer(lidx)
-        self.fhook = l.register_forward_hook(self.forward_hook(lidx, cone))
+        self.fhook = l.register_forward_hook(self.forward_hook(lidx))
         with torch.no_grad():
           self.model(test)
         self.fhook.remove()

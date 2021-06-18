@@ -93,12 +93,12 @@ class ModelEval(object):
         self.model,self.data = model,data
         self.eval_cache = dict()
         self.name=name
-    def eval(self,idx, cone = None):
+    def eval(self,idx):
         if idx in self.eval_cache:
             return self.eval_cache[idx]
         print("evaluating layer {}".format(idx))
 
-        res = compute_activation(self.model, idx, self.data, use_loader = True, name = self.name, cone = cone)
+        res = compute_activation(self.model, idx, self.data, use_loader = True, name = self.name)
 
         print("done")
         self.eval_cache[idx] = res
@@ -109,13 +109,13 @@ class ModelEval(object):
     def set_layer_pred(self,lp):
         self.split_cache = dict()
         self.cond = lp.eval(self)
-    def split(self,idx, cone = None):
+    def split(self,idx):
         if idx in self.split_cache:
             return self.split_cache[idx]
         print("cond shape")
         print(self.cond.shape)
         def select(c):
-            return np.compress(c,self.eval(idx, cone),axis=0)
+            return np.compress(c,self.eval(idx),axis=0)
         res = (select(self.cond),select(np.logical_not(self.cond)))
         self.split_cache[idx] = res
         return res
