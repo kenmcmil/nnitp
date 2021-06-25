@@ -43,6 +43,7 @@ def main(param,summary):
     kwargs["mu"] = param["mu"]
     kwargs["gamma"] = param["gamma"]
 
+    s1 = time.time()
     data_model = DataModel()
     data_model.load(name)
     data_model.set_sample_size(size, category = category)
@@ -51,11 +52,17 @@ def main(param,summary):
     layer_idxs = [param["layer"]]
     avails = ['-1:input'] + ['{:0>2}'.format(i)+':'+ l
                             for i,l in enumerate(data_model.model.layers)]
+    last = len(avails)-2
+    train_eval.set_idxs(layer_idxs + [-1, last])
+    test_eval.set_idxs(layer_idxs + [last])
     print(avails)
-    layers = [avails[i] for i in layer_idxs if i>=0 and i <len(avails)]
+    layers = [avails[i+1] for i in layer_idxs if i+1>=0 and i+1 <len(avails)]
+    s2 = time.time()
     conc = output_category_predicate(data_model, category)
+    s3 = time.time()
     compset = conc.sat(train_eval)
     inp = compset[input_idx]
+    s4 = time.time()
 
 
     def previous_layer(layers, cur):
@@ -68,23 +75,39 @@ def main(param,summary):
     layer = previous_layer(layers, conc.layer)
     itp,stats = interpolant(data_model,layer,
                                          inp,conc,**kwargs)
+    train_eval.remove_cache(conc.layer)
+    test_eval.remove_cache(conc.layer)
+    itp,stats = interpolant(data_model,10,
+                                         inp,itp,**kwargs)
 
+
+    s5 = time.time()
 
     F,N,P = stats.train_acc
     train_prec = (N - F)/N if N != 0 else None
     train_recall = (N - F)/P if P != 0 else None
+    print("train_prec: ", train_prec)
+    print("train_recall: ", train_recall)
     F,N,P = stats.test_acc
     test_prec = (N - F)/N if N != 0 else None
     test_recall = (N - F)/P if P != 0 else None
     complexity = len(itp.pred.args)
-    if train_prec and test_prec and train_recall and test_recall and complexity:
+    print("test_prec: ", test_prec)
+    print("test_recall: ", test_recall)
+    print("complexity: ", complexity)
+    if train_prec is not None and test_prec is not None and train_recall is not None and test_recall is not None and complexity is not None:
         summary["train_prec"].append(train_prec)
         summary["test_prec"].append(test_prec)
         summary["train_recall"].append(train_recall)
         summary["test_recall"].append(test_recall)
         summary["complexity"].append(complexity)
 
-
+    e = time.time()
+    print("preparation time: ", s2-s1)
+    print("output predicate time: ", s3-s2)
+    print("sat computation time: ", s4-s3)
+    print("interpolant time: ", s5-s4)
+    print("total time: ", e-s1)
 
 
 def plot(logs,mu, save_dir):
@@ -182,7 +205,7 @@ if __name__ == '__main__':
 
     param = {}
     param["name"] = args.experiment
-    param["layer"]= args.layer+1
+    param["layer"]= args.layer
     param["size"]= args.sample_size
     for mu in mu_range:
         param["mu"]= mu
@@ -199,10 +222,7 @@ if __name__ == '__main__':
                 param["category"] = cat
                 for j in range(args.num_images):
                     param["input_idx"]=j
-                    s = time.time()
                     main(param, summary)
-                    e = time.time()
-                    print("total time : %d"%(e-s))
 
             logs["gamma"].append(gamma)
             logs["train_prec"].append(mean(summary["train_prec"]))
@@ -210,6 +230,8 @@ if __name__ == '__main__':
             logs["train_recall"].append(mean(summary["train_recall"]))
             logs["test_recall"].append(mean(summary["test_recall"]))
             logs["complexity"].append(mean(summary["complexity"]))
+            data_save = "%s/data_%2.1f.pth"%(path, mu)
+            torch.save(logs, data_save)
 
         data_save = "%s/data_%2.1f.pth"%(path, mu)
         fig_save = "%s/sweep_%2.1f.png"%(path, mu)

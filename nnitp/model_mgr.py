@@ -5,9 +5,10 @@
 import sys
 import os
 import numpy as np
+import time
 from importlib import import_module
 from .error import Error
-from .model_wrapper import compute_activation, compute_all_activation, sample_dataset
+from .model_wrapper import compute_activation,  sample_dataset
 # Code for fetching models and datasets.
 #
 # TODO: this is dependent on torch framework.
@@ -93,16 +94,30 @@ class ModelEval(object):
         self.model,self.data = model,data
         self.eval_cache = dict()
         self.name=name
+        self.idxs = set()
     def eval(self,idx):
         if idx in self.eval_cache:
             return self.eval_cache[idx]
+        self.idxs.add(idx)
         print("evaluating layer {}".format(idx))
 
-        res = compute_activation(self.model, idx, self.data, use_loader = True, name = self.name)
+        res = compute_activation(self.model, self.idxs, self.data, use_loader = True, name = self.name)
 
         print("done")
-        self.eval_cache[idx] = res
-        return res
+        for i in self.idxs:
+            self.eval_cache[i] = res[i]
+        self.idxs = set()
+        return self.eval_cache[idx]
+    def remove_cache(self, idx):
+        if idx in self.eval_cache:
+            self.eval_cache.pop(idx)
+        else:
+            print(f"key {idx} is not in the dictionary")
+    def set_idxs(self, idxs):
+        self.idxs = set()
+        for i in idxs:
+            if i not in self.eval_cache:
+                self.idxs.add(i)
     def set_pred(self,idx,p):
         self.split_cache = dict()
         self.cond = vect_eval(p,self.eval(idx))
@@ -112,8 +127,6 @@ class ModelEval(object):
     def split(self,idx):
         if idx in self.split_cache:
             return self.split_cache[idx]
-        print("cond shape")
-        print(self.cond.shape)
         def select(c):
             return np.compress(c,self.eval(idx),axis=0)
         res = (select(self.cond),select(np.logical_not(self.cond)))
@@ -123,11 +136,11 @@ class ModelEval(object):
         return np.compress(self.cond,np.arange(len(self.cond)))
     def eval_one(self,idx,input):
         data = input.reshape(1,*input.shape)
-        return compute_activation(self.model,idx,data, name = self.name)[0]
+        return compute_activation(self.model,idx,data, name = self.name)[idx][0]
     def eval_all(self,idx,data):
-        return compute_activation(self.model,idx,data, name = self.name)
-    def eval_all_layer(self):
-        return compute_all_activation(self.model, self.data, use_loader = True, name = self.name)
+        return compute_activation(self.model,idx,data, name = self.name)[idx]
+    #def eval_all_layer(self):
+    #    return compute_all_activation(self.model, self.data, use_loader = True, name = self.name)
 
 #
 # Evaluate a predicate on a vector.

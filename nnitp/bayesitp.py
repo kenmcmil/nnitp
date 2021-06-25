@@ -195,10 +195,6 @@ def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]
         A = A.reshape(len(A),-1)
         onset = onset.reshape(len(onset),-1)
         offset = offset.reshape(len(offset),-1)
-    #print("------------")
-    #print(A.shape)
-    #print(onset.shape)
-    #print(offset.shape)
     res = ensembleseparator(A,onset,offset,epsilon,gamma,mu)
     if len(shape) > 1:
         res = [(unflatten_unit(shape,idx),val,pos) for idx,val,pos in res]
@@ -306,7 +302,6 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
                 random_subspace_size:Optional[Callable[[int],int]]=None,
                 weights = None,
                 ) -> Tuple[LayerPredicate,Stats]:
-
     global _ttime,_ensemble_size,_use_random_subspace,_random_subspace_size
     train_eval,test_eval = data_model._train_eval,data_model._test_eval
     epsilon = 1.0 - alpha
@@ -323,7 +318,7 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     stats = Stats()
     stats.train_acc = train_error
     stats.test_acc = test_error
-    stats.time = _ttime 
+    stats.time = _ttime
     return LayerPredicate(l1,And(*conjs)),stats 
 
 def describe_error(s,error):

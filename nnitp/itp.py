@@ -89,7 +89,7 @@ class BoundPredicate(Predicate):
         ret.add(idx)
         return ret
         #return tuple(slice(n,n+1) for n in idx)
-    
+
 #def cone_join(slices):
 #    lbs = zip(tuple(x.start for x in y) for y in slices)
 #    lb = tuple(min(x) for x in lbs)

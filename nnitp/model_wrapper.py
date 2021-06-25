@@ -23,46 +23,45 @@ import nnitp.models.resnet as resnet
 
 # This class is the interface to torch models.
 def sample_dataset(data, size, category = None):
+    #size = min(size, len(data))
+    #idx = range(size)
     targets = np.array(data.targets)
     size = min(size, len(targets))
     idx = []
     i1 = np.where(targets == category)[0]
     i2 = np.where(targets != category)[0]
     i2 = resample(i2, n_samples= size-len(i1),replace =False, stratify = targets[i2])
-    #i2 = np.random.choice(i2, size-len(i1))
     idx = np.concatenate((i1,i2))
-    #new_data =[]
-    #for i, x in enumerate(targets):
-    #    if x == category:
-    #        idx.append(x)
-    #    else:
-    #        new_data.append((i,x))
-    #size = min(len(data), size)
     data = torch.utils.data.Subset(data, idx)
     return data
 
 
-def compute_all_activation(model,test, use_loader = False, name =None):
+def compute_activation(model,lidxs, test, use_loader = False, name =None):
     if use_loader:
-        temp = []
+        ret = dict()
         if name.startswith("imagenet"):
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 500, num_workers = 16, pin_memory = True)
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
         else:
             data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
-            temp.append(model.compute_all_activation(inp))
-        ret=[]
-        for i in range(len(temp[0])):
-            cur = []
-            for j in range(len(temp)):
-                cur.append(temp[j][i])
-            ret.append(torch.cat(cur))
+            s = time.time()
+            temp = model.compute_activation(inp, lidxs)
+            e = time.time()
+            #print(i," :", e-s)
+            for k in temp:
+                if k in ret:
+                    ret[k].append(temp[k])
+                else:
+                    ret[k] = [temp[k]]
+            e1 = time.time()
+            #print("total :", e1-s)
+        for k in ret:
+            ret[k] = torch.cat(ret[k])
         #ret = torch.cat(ret)
     else:
-        ret = model.compute_all_activation(test)
-
-    for i in range(len(ret)):
-        ret[i]=ret[i].cpu().numpy()
+        ret = model.compute_activation(test, lidxs)
+    for k in ret.keys():
+        ret[k]=ret[k].numpy()
     return ret
 
 
@@ -70,22 +69,23 @@ def compute_all_activation(model,test, use_loader = False, name =None):
 # data `test`. Layer index `-1` stands for the input data.
 #
 
-def compute_activation(model,lidx,test, use_loader = False, all_layer = False, name = None):
-    if use_loader:
-        ret = []
-        if name.startswith("imagenet"):
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 1000, num_workers = 16, pin_memory = True)
-        else:
-            data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
-        for i, (inp, target) in enumerate(data_loader):
-            s = time.time()
-            ret.append(model.compute_activation(lidx, inp).cpu())
-            e = time.time()
-            print(e-s)
-        ret = torch.cat(ret)
-    else:
-        ret = model.compute_activation(lidx, test)
-    return ret.cpu().numpy()
+
+#def compute_activation(model,lidx,test, use_loader = False,  name = None):
+#    if use_loader:
+#        ret = []
+#        if name.startswith("imagenet"):
+#            data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
+#        else:
+#            data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
+#        for i, (inp, target) in enumerate(data_loader):
+#            #s = time.time()
+#            ret.append(model.compute_activation(lidx, inp).cpu())
+#            #e = time.time()
+#            #print(e-s)
+#        ret = torch.cat(ret)
+#    else:
+#        ret = model.compute_activation(lidx, test)
+#    return ret.cpu().numpy()
 
 #get all layer and its name from model
 
@@ -115,22 +115,24 @@ class Wrapper(object):
         self.model.eval()
         #self._backend_session = K.get_session()
         self.inp_shape = inp_shape
-        #self.mid_out = []
-        #self.fhooks = []
         self.shape_hooks = []
         self.layer_shapes = []
         self._layers=[]
         self._layers_names=[]
         self._selected_sample = {}
+        self.mid_out = dict()
         get_layers(self.model,self._layers,self._layers_names)
         self.layer_len = len(self._layers)
 
         #print(self._layers)
         #print(self._layers_names)
 
-
         self.init_shape()
-        self.n,self.V,self.E = self.get_graph_resnet()
+        if isinstance(self.model, resnet.ResNetM):
+            self.n,self.V,self.E = self.get_graph_resnet()
+        else:
+            self.n,self.V,self.E = self.get_graph_regular()
+
         #print(len(self.V))
         #print(len(self.E))
         #for v in self.V:
@@ -168,8 +170,37 @@ class Wrapper(object):
         #        idxs.append(slice(0,i,2))
         #    self._selected_sample[str(layer_idx)] = idxs
         def hook(module,inp,out):
-            self.mid_out.append(out.detach().cpu())
+            self.mid_out[layer_idx] = out.detach().cpu()
         return hook
+
+    def get_graph_regular(self):
+        D = dict()
+        n = 0
+        V = []
+        E = [[]]
+
+        def record_hook(module, input, output):
+            key = id(module)
+            if key not in D:
+                D[key] = len(V)
+                V.append(module)
+
+        hooks = []
+        for module in self._layers:
+            hooks.append(module.register_forward_hook(record_hook))
+        x = torch.randn(self.inp_shape).to(self.device)
+        y = self.model(x)
+        for hook in hooks:
+            hook.remove()
+
+        n = len(V)
+        E = [([False] * n) for i in range(n)]
+
+        for i in range(n-1):
+            E[i][i+1] = True
+
+        return n, V, E
+
 
     def get_graph_resnet(self):
         D = dict()
@@ -204,9 +235,11 @@ class Wrapper(object):
         E = [([False] * n) for i in range(n)]
 
         chain = [self.model.conv1, self.model.bn1, self.model.relu1]
+        if hasattr(self.model, "maxpool"):
+            chain.append(self.model.maxpool)
         add_chain(chain)
 
-        src = [self.model.relu1]
+        src = [chain[-1]]
         for module in self.model.modules():
             if isinstance(module, resnet.BasicBlockM):
                 chain = [module.conv1, module.bn1, module.relu1,
@@ -256,6 +289,10 @@ class Wrapper(object):
         add_chain(chain)
 
         return n, V, E
+
+
+
+
     # To use this model in given model in a thread, we have to set it
     # up as the default Keras session and also set up the tensorflow
     # default graph. This method returns a context object suitable for
@@ -271,39 +308,45 @@ class Wrapper(object):
     # for the input data.
     #
 
-    def compute_all_activation(self,test):
+    def compute_activation(self, test, lidxs):
         self.model.eval()
+        if isinstance(lidxs, int):
+            lidxs = set([lidxs])
         if not torch.is_tensor(test):
             test = torch.tensor(test)
         test = test.to(self.device)
-        self.mid_out = []
         self.fhook = []
-        for i, l in enumerate(self._layers):
-            self.fhook.append(l.register_forward_hook(self.forward_hook(i)))
+        ret = dict()
+        for i in lidxs:
+            if i < 0:
+                ret[i] = test.detach().cpu()
+            else:
+                l = self.get_layer(i)
+                self.fhook.append(l.register_forward_hook(self.forward_hook(i)))
         with torch.no_grad():
-            out = self.model(test)
+            self.model(test)
         for hook in self.fhook:
             hook.remove()
 
-        ret = [test.cpu()]+self.mid_out+[out.cpu()]
-
+        ret.update(self.mid_out)
+        self.mid_out = dict()
         return ret
 
-    def compute_activation(self,lidx,test):
-        self.model.eval()
-        if not torch.is_tensor(test):
-            test = torch.tensor(test)
-        test = test.to(self.device)
-        if lidx < 0:
-            return test
-        self.mid_out = []
-        l = self.get_layer(lidx)
-        self.fhook = l.register_forward_hook(self.forward_hook(lidx))
-        with torch.no_grad():
-          self.model(test)
-        self.fhook.remove()
+    #def compute_activation(self,lidx,test):
+    #    self.model.eval()
+    #    if not torch.is_tensor(test):
+    #        test = torch.tensor(test)
+    #    test = test.to(self.device)
+    #    if lidx < 0:
+    #        return test
+    #    self.mid_out = []
+    #    l = self.get_layer(lidx)
+    #    self.fhook = l.register_forward_hook(self.forward_hook(lidx))
+    #    with torch.no_grad():
+    #      self.model(test)
+    #    self.fhook.remove()
 
-        return self.mid_out[0]
+    #    return self.mid_out[0]
 
 
     # Get the shape of a given layer's tensor, or the input shape if
@@ -407,6 +450,7 @@ class Wrapper(object):
                     break
             if inp:
                 layer_inp = self.inp_shape
+
 
             cones = cone_lists[n1-n]
             if layer_inp == layer_out:
