@@ -362,12 +362,13 @@ class NormalState(State):
                     #ycenter = (slc[1].start + slc[1].stop)/2.0
                     #xcenter = (slc[2].start + slc[2].stop)/2.0
                     pixel = img[int(ycenter),int(xcenter)]
-                    if np.mean(pixel) >= 0.5:
-                        img[int(ycenter),int(xcenter)]*=0.5
-                    elif np.mean(pixel) == 0:
-                        img[int(ycenter),int(xcenter)]+=0.5
-                    else:
-                        img[int(ycenter),int(xcenter)]*=1.5
+                    #if np.mean(pixel) >= 0.5:
+                    #    img[int(ycenter),int(xcenter)] = 0
+                    #elif np.mean(pixel) == 0:
+                    #    img[int(ycenter),int(xcenter)] = 1
+                    #else:
+                    #    img[int(ycenter),int(xcenter)] = 1
+                    img[int(ycenter),int(xcenter)] = 1
                     #c = 'black' if np.mean(pixel) >= 0.5 else 'white'
                     #sub.text(xcenter,ycenter,str(cidx),fontsize=11,
                     #         verticalalignment='center', horizontalalignment='center', color=c)
