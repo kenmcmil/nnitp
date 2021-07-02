@@ -75,13 +75,39 @@ def main(param,summary):
     layer = previous_layer(layers, conc.layer)
     itp,stats = interpolant(data_model,layer,
                                          inp,conc,**kwargs)
+
+
+
+
+    print("-----------------------------------------------")
+    F,N,P = stats.train_acc
+    print("training N: ", N)
+    N_list = stats.train_ensemble_acc
+    for i, r in enumerate(N_list):
+        print("n",i, " :",r[1])
+
+
+    F,N,P = stats.test_acc
+    print("testing N: ", N)
+    N_list = stats.test_ensemble_acc
+    for i, r in enumerate(N_list):
+        print("n",i, " :",r[1])
+    print("-----------------------------------------------")
+
+
+
+
     train_eval.remove_cache(conc.layer)
     test_eval.remove_cache(conc.layer)
-    itp,stats = interpolant(data_model,10,
+    itp,stats = interpolant(data_model,2,
                                          inp,itp,**kwargs)
 
 
     s5 = time.time()
+
+
+
+
 
     F,N,P = stats.train_acc
     train_prec = (N - F)/N if N != 0 else None
@@ -95,6 +121,10 @@ def main(param,summary):
     print("test_prec: ", test_prec)
     print("test_recall: ", test_recall)
     print("complexity: ", complexity)
+
+
+
+
     if train_prec is not None and test_prec is not None and train_recall is not None and test_recall is not None and complexity is not None:
         summary["train_prec"].append(train_prec)
         summary["test_prec"].append(test_prec)

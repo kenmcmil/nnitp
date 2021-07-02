@@ -67,7 +67,9 @@ class DataModel(object):
             self.params = module.params if hasattr(module,'params') else {}
             self.loaded = True
 
-
+    def set_idxs(self, idxs):
+        self._train_eval.set_idxs(idxs)
+        self._test_eval.set_idxs(idxs)
 
     def set_sample_size(self,size:int, category:int = None):
         train_data = sample_dataset(self.train_data, size, category = category)
@@ -110,6 +112,7 @@ class ModelEval(object):
         return self.eval_cache[idx]
     def remove_cache(self, idx):
         if idx in self.eval_cache:
+            print("cache removed: ", idx)
             self.eval_cache.pop(idx)
         else:
             print(f"key {idx} is not in the dictionary")

@@ -16,8 +16,11 @@ def get_data():
       transforms.Normalize((0.1307,),(0.3081,))
     ])
 
-    train_data = datasets.MNIST('data', train = True, download = True, transform = transform)
-    test_data = datasets.MNIST('data', train = False, download = True, transform = transform)
+    pretraineddir = os.environ["PRETRAINEDDIR"]
+    datadir = os.path.join(pretraineddir, "data")
+
+    train_data = datasets.MNIST(datadir, train = True, download = True, transform = transform)
+    test_data = datasets.MNIST(datadir, train = False, download = True, transform = transform)
     return train_data, test_data
 
 # Fetch the trained model

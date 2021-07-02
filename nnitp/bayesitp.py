@@ -28,6 +28,8 @@ Acc = Tuple[int,int,int]
 class Stats(object):
     train_acc : Acc  # Accuracy over training set
     test_acc : Acc   # Accuracy over test set
+    train_ensemble_acc:list
+    test_ensemble_acc:list
     time : float     # time to compute
 
     def _describe_acc(self,s,acc):
@@ -257,9 +259,16 @@ def interpolant_int(train_eval,test_eval,l1,A,l2,pred,
     describe_error("training",train_error)
     test_error = check_itp(test_eval,l1,itp_pred(res),l2,pred)
     describe_error("test",test_error)
+    train_e = []
+    test_e = []
+    for r in res:
+        train_e.append(check_itp(train_eval,l1,itp_pred([r]),l2,pred))
+        test_e.append(check_itp(test_eval,l1,itp_pred([r]),l2,pred))
+
 #    if show_predictions:
 #        show_positives(train_eval,l1,itp_pred(res),l2,pred,10,res)
-    return res,train_error,test_error
+
+    return res, train_error, test_error, train_e, test_e
 
 _ttime = 0.0
 
@@ -294,7 +303,7 @@ _ttime = 0.0
 #   replacement of the features of size `random_subspace_size(N)`
 #   where `N` is the number of units in the interpolant layer `l1`.
 #   The default function is `N/ensemble_size`.
-#   
+#
 
 def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
                 lpred:LayerPredicate,alpha:float=0.98,gamma:float=0.6,
@@ -312,14 +321,20 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     l2,pred = lpred.layer,lpred.pred
     A = train_eval.eval_all(l1,inps)
     cone = get_pred_cone(train_eval.model,lpred,l1)
-    res,train_error,test_error = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
+    res,train_error,test_error, train_e, test_e = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
                                                  epsilon,gamma,mu,cone=cone,weights=weights)
+
+
+
+
     conjs = [BoundPredicate(*x) for x in res]
     stats = Stats()
     stats.train_acc = train_error
     stats.test_acc = test_error
+    stats.train_ensemble_acc = train_e
+    stats.test_ensemble_acc = test_e
     stats.time = _ttime
-    return LayerPredicate(l1,And(*conjs)),stats 
+    return LayerPredicate(l1,And(*conjs)),stats
 
 def describe_error(s,error):
     F,N,P = error
@@ -334,7 +349,7 @@ def describe_error(s,error):
 #    return model.get_cone(n,n1,slc) # type: ignore
 def get_cone(model,n,n1,cone) -> Tuple:
     return model.get_cone(n,n1,cone) # type: ignore
-    
+
 # Get the slice of layer `layer` that is relevant to LayerPredicate `lpred`.
 
 def get_pred_cone(model,lpred,layer = -1) -> Tuple:
@@ -351,7 +366,7 @@ def unslice_itp(slc,pred):
 def unslice_coord(slc,coord):
     return tuple(x.start+y for x,y in zip(slc,coord))
 
-    
+
 # Computes the error for a predication over a data set. The error is
 # represented as a triple `(F,N,P)`, where `F` is the number of
 # failed predications, `N` is the number predictions, and `P` is the
@@ -360,7 +375,7 @@ def unslice_coord(slc,coord):
 #
 # The procedure takes a model evaluator `m`, the prediction predicate
 # `p1` at layer `l1` and the result predicate `p2` at layer `l2`.
-# 
+#
 
 def check_itp(m,l1,p1,l2,p2):
     prediction = vect_eval(p1,m.eval(l1))

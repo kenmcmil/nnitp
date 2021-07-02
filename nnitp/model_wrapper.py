@@ -30,8 +30,12 @@ def sample_dataset(data, size, category = None):
     idx = []
     i1 = np.where(targets == category)[0]
     i2 = np.where(targets != category)[0]
-    i2 = resample(i2, n_samples= size-len(i1),replace =False, stratify = targets[i2])
-    idx = np.concatenate((i1,i2))
+    if len(i1) < size:
+        i2 = resample(i2, n_samples= size-len(i1),replace =False, stratify = targets[i2])
+        idx = np.concatenate((i1,i2))
+    else:
+        idx =range(len(data))
+        idx = resample(idx, n_samples= size,replace =False, stratify = targets[i2])
     data = torch.utils.data.Subset(data, idx)
     return data
 

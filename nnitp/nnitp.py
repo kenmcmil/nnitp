@@ -4,7 +4,7 @@
 import torch
 import numpy as np
 from threading import Thread
-from traits.api import HasTraits,String,Enum,Instance,Int,Button,Float,Bool
+from traits.api import HasTraits,String,Enum,Instance,Int,Button,Float,Bool,observe
 import traits.api as t
 from traitsui.api import View, Item, SetEditor, Group, Tabbed, Handler
 from .model_mgr import DataModel,  datasets
@@ -63,10 +63,13 @@ class InterpolantThread(Thread):
         #with self.spec.data_model.session():
         spec = self.spec
         input = spec.state.input.reshape(1,*spec.state.input.shape)
-        itp,stats = interpolant(self.spec.data_model,spec.layer,
-                                         input,spec.state.conc,**spec.kwargs)
-        self.top.message('Interpolant: {}\n'.format(itp))
-        self.top.message(str(stats))
+        n_layers = len(spec.layers)
+        itp = spec.state.conc
+        for i in range(n_layers):
+            itp,stats = interpolant(spec.data_model,spec.layers[-1-i],
+                                            input,itp,**spec.kwargs)
+            self.top.message('Interpolant at {}: {}\n'.format(spec.layers[-1-i], itp))
+            self.top.message(str(stats))
         self.spec.state.itp = itp
         self.spec.state.stats = stats
         #self.top.push_state(self.spec.state)
@@ -138,15 +141,16 @@ class Model(HasTraits):
             return False
         return True
 
+
     def _name_changed(self):
         if self.check_busy():
             self.worker_thread = LoadThread(self.top,self.name,self.data_model)
             QApplication.setOverrideCursor(Qt.BusyCursor)
             self.worker_thread.start()
 
-    def _size_changed(self):
-        if self.data_model.loaded:
-            self.data_model.set_sample_size(self.size)
+    def _size_changed(self, category):
+        if self.data_model.loaded and self.size > 0:
+            self.data_model.set_sample_size(self.size, category)
 
     def _data_model_changed(self):
         self.set_kwargs(self.data_model.params)
@@ -182,7 +186,7 @@ class Model(HasTraits):
     def previous_layer(self,layer:int) -> int:
         layers = [int(x.split(':')[0]) for x in self.top.layers]
         layers = [x for x in sorted(layers) if x < layer]
-        return layers[-1] if layers else -1
+        return layers if layers else [-1]
 
     # Compute an interpolant for a given input and conclusion in a
     # thread, advancing the state when completed. Here `state` is the
@@ -192,8 +196,9 @@ class Model(HasTraits):
         if self.check_busy():
             spec = InterpolantSpec()
             spec.state = state
-            spec.layer =  self.previous_layer(state.conc.layer)
+            spec.layers =  self.previous_layer(state.conc.layer)
             spec.data_model = self.data_model
+            spec.data_model.set_idxs(spec.layers)
             kwargs = self.get_kwargs()
             spec.kwargs = dict((k,kwargs[k]) for k in ['alpha','gamma','mu','ensemble_size'])
             self.worker_thread = InterpolantThread(self.top,spec)
@@ -250,14 +255,14 @@ class InitState(State):
 
     # Draw the matplotlib figure corresponding to this state
 
-    def render(self,figure:Figure):
+    def render(self,figure:Figure, force = False):
 
         # In the initial state, we display a choice of input images
         # satisfying in the chosen category and allow the user to select one.
 
         # Get the inputs of selected category according to the model.
         category = self.top.category
-        if self._displayed_category != category:
+        if self._displayed_category != category or force:
             self.conc = output_category_predicate(self.top.model.data_model,category)
             #with self.top.model.data_model.session():
             self.compset = self.conc.sat(self.top.model.model_eval())
@@ -325,7 +330,7 @@ class NormalState(State):
     # All the images in the figure are normalozed to the same
     # intensity scale.
 
-    def render(self,figure:Figure):
+    def render(self,figure:Figure, force = False):
 
         if self.comp is None:
             self.set_comparison(self.itp)
@@ -357,7 +362,12 @@ class NormalState(State):
                     #ycenter = (slc[1].start + slc[1].stop)/2.0
                     #xcenter = (slc[2].start + slc[2].stop)/2.0
                     pixel = img[int(ycenter),int(xcenter)]
-                    img[int(ycenter),int(xcenter)]*=0.9
+                    if np.mean(pixel) >= 0.5:
+                        img[int(ycenter),int(xcenter)]*=0.5
+                    elif np.mean(pixel) == 0:
+                        img[int(ycenter),int(xcenter)]+=0.5
+                    else:
+                        img[int(ycenter),int(xcenter)]*=1.5
                     #c = 'black' if np.mean(pixel) >= 0.5 else 'white'
                     #sub.text(xcenter,ycenter,str(cidx),fontsize=11,
                     #         verticalalignment='center', horizontalalignment='center', color=c)
@@ -461,11 +471,12 @@ class MainWindow(HasTraits):
     fraction = Float()
     percentile = Float(0.0)
     back = Button()
+    refresh = Button()
 
     view = View(
         Item('display',show_label=False, style='custom',style_sheet='*{font-size:11pt}'),Tabbed(
             Group('model', 'layers', label = 'Model'),
-            Group(Group('category','restrict',Item('back',show_label=False),
+            Group(Group('category','restrict',Item('back',show_label=False),Item('refresh',show_label=False),
                         orientation='horizontal',style='simple'),
                   Group(Item('predicate',style='readonly'),
                         Item('fraction',style='readonly'),
@@ -491,19 +502,21 @@ class MainWindow(HasTraits):
         self.signals.model_loaded.connect(self.model_loaded)
         self.signals.push_state.connect(self.push_state)
 
-    def update(self):
+
+
+    def update(self, force = False):
         print ('clearing figure...')
         self.figure.clear()
         print ('done')
         if len(self._states):
-            self._states[-1].render(self.figure)
+            self._states[-1].render(self.figure, force)
             self.figure.canvas.mpl_connect('button_press_event', self.onclick)
             self.figure.canvas.mpl_connect('axes_enter_event', self.on_axes_enter)
 
     def model_loaded(self):
         state = InitState()
         self.model._data_model_changed()  # update the interpolation parameters
-        self.model._size_changed()        # update model evaluators
+        self.model._size_changed(self.category)        # update model evaluators
         state.top = self
         self.avail = self.model.layers()
         layer_idxs = self.model.data_model.params.get('layers',[])
@@ -527,6 +540,9 @@ class MainWindow(HasTraits):
         if self._states:
             self._states[-1].on_axes_enter(event)
 
+    def _refresh_fired(self):
+        self.update(force = True)
+
     def _back_fired(self):
         if len(self._states) > 1:
             self._states.pop()
@@ -538,6 +554,8 @@ class MainWindow(HasTraits):
         self.update()
 
     def _category_changed(self):
+        if self.model.data_model.loaded:
+            self.model._size_changed(self.category)
         self.update()
 
 def list_elems(l1,l2):

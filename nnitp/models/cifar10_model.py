@@ -30,8 +30,10 @@ def get_data():
       ])
 
 
-    train_data = datasets.CIFAR10('data', train = True, download = True, transform = train_transform)
-    test_data = datasets.CIFAR10('data', train = False, download = True, transform = test_transform)
+    pretraineddir = os.environ["PRETRAINEDDIR"]
+    datadir = os.path.join(pretraineddir, "data")
+    train_data = datasets.CIFAR10(datadir, train = True, download = True, transform = train_transform)
+    test_data = datasets.CIFAR10(datadir, train = False, download = True, transform = test_transform)
     return train_data, test_data
 
 # Fetch the trained model
