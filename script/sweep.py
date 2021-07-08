@@ -16,10 +16,10 @@ import gc
 import argparse
 import random
 from nnitp.model_mgr import DataModel,datasets
-from nnitp.itp import LayerPredicate, AndLayerPredicate, BoundPredicate
+from nnitp.itp import LayerPredicate, AndLayerPredicate, BoundPredicate,And
 from nnitp.itp import output_category_predicate
 from nnitp.img import prepare_images
-from nnitp.bayesitp import Stats, interpolant, get_pred_cone, fraction, fractile
+from nnitp.bayesitp import Stats, interpolant, get_pred_cone, fraction, fractile, check_itp
 #
 # Computation threads. We do computations in threads to avoid freezing
 # the GUI.
@@ -73,42 +73,10 @@ def main(param,summary):
 
     inp = inp.reshape(1,*inp.shape)
     layer = previous_layer(layers, conc.layer)
+    #itp_i,stats = interpolant(data_model,layer,
+    #                                     inp,conc,**kwargs)
     itp,stats = interpolant(data_model,layer,
                                          inp,conc,**kwargs)
-
-
-
-
-    print("-----------------------------------------------")
-    F,N,P = stats.train_acc
-    print("training N: ", N)
-    N_list = stats.train_ensemble_acc
-    for i, r in enumerate(N_list):
-        print("n",i, " :",r[1])
-
-
-    F,N,P = stats.test_acc
-    print("testing N: ", N)
-    N_list = stats.test_ensemble_acc
-    for i, r in enumerate(N_list):
-        print("n",i, " :",r[1])
-    print("-----------------------------------------------")
-
-
-
-
-    train_eval.remove_cache(conc.layer)
-    test_eval.remove_cache(conc.layer)
-    itp,stats = interpolant(data_model,2,
-                                         inp,itp,**kwargs)
-
-
-    s5 = time.time()
-
-
-
-
-
     F,N,P = stats.train_acc
     train_prec = (N - F)/N if N != 0 else None
     train_recall = (N - F)/P if P != 0 else None
@@ -125,6 +93,71 @@ def main(param,summary):
 
 
 
+
+    #itps = []
+    #for pred in itp_i.pred.args:
+    #    itps.append(LayerPredicate(itp_i.layer,pred))
+
+    #print("-----------------------------------------------")
+    #F,N,P = stats.train_acc
+    #print("training N: ", N)
+    #N_list = stats.train_ensemble_acc
+    #for i, r in enumerate(N_list):
+    #    print("n",i, " :",r[1])
+
+
+    #F,N,P = stats.test_acc
+    #print("testing N: ", N)
+    #N_list = stats.test_ensemble_acc
+    #for i, r in enumerate(N_list):
+    #    print("n",i, " :",r[1])
+    #print("-----------------------------------------------")
+
+
+
+
+    #train_eval.remove_cache(conc.layer)
+    #test_eval.remove_cache(conc.layer)
+    #new_itps = []
+    #for cur in itps:
+    #    itp,stats = interpolant(data_model,2,
+    #                                        inp,cur,**kwargs)
+    #    print(itp.pred)
+    #    new_itps.append(itp.pred)
+    #    F,N,P = stats.train_acc
+    #    train_prec = (N - F)/N if N != 0 else None
+    #    train_recall = (N - F)/P if P != 0 else None
+    #    print("train_prec: ", train_prec)
+    #    print("train_recall: ", train_recall)
+    #    F,N,P = stats.test_acc
+    #    test_prec = (N - F)/N if N != 0 else None
+    #    test_recall = (N - F)/P if P != 0 else None
+    #    complexity = len(itp.pred.args)
+    #    print("test_prec: ", test_prec)
+    #    print("test_recall: ", test_recall)
+    #    print("complexity: ", complexity)
+    #l_pred = And(*new_itps)
+    #print(l_pred)
+    #F,N,P = check_itp(train_eval, 2, l_pred ,itp_i.layer, itp_i.pred)
+    #print("F: ", F)
+    #print("N: ", N)
+    #print("P: ", P)
+    #train_prec = (N - F)/N if N != 0 else None
+    #train_recall = (N - F)/P if P != 0 else None
+    #print("train_prec: ", train_prec)
+    #print("train_recall: ", train_recall)
+    #F,N,P = check_itp(test_eval, 2, l_pred,itp_i.layer, itp_i.pred)
+    #print("F: ", F)
+    #print("N: ", N)
+    #print("P: ", P)
+    #test_prec = (N - F)/N if N != 0 else None
+    #test_recall = (N - F)/P if P != 0 else None
+    #complexity = len(itp.pred.args)
+    #print("test_prec: ", test_prec)
+    #print("test_recall: ", test_recall)
+    #print("complexity: ", complexity)
+
+
     if train_prec is not None and test_prec is not None and train_recall is not None and test_recall is not None and complexity is not None:
         summary["train_prec"].append(train_prec)
         summary["test_prec"].append(test_prec)
@@ -132,12 +165,12 @@ def main(param,summary):
         summary["test_recall"].append(test_recall)
         summary["complexity"].append(complexity)
 
-    e = time.time()
-    print("preparation time: ", s2-s1)
-    print("output predicate time: ", s3-s2)
-    print("sat computation time: ", s4-s3)
-    print("interpolant time: ", s5-s4)
-    print("total time: ", e-s1)
+    #e = time.time()
+    #print("preparation time: ", s2-s1)
+    #print("output predicate time: ", s3-s2)
+    #print("sat computation time: ", s4-s3)
+    #print("interpolant time: ", s5-s4)
+    #print("total time: ", e-s1)
 
 
 def plot(logs,mu, save_dir):

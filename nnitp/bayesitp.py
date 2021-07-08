@@ -148,6 +148,35 @@ def separator(A,onset,offset,epsilon,gamma,mu):
             gamma = orig_gamma * gamma
     return res
 
+def add_idx(idxs, samples):
+    length = len(samples)//20
+    for idx,_,_ in samples[:length]:
+        idxs.add(idx)
+
+
+
+
+def sample_separator(A,onset,offset,epsilon,gamma,mu):
+    orig_gamma = gamma
+    idxs = set()
+    while len(onset) > epsilon * (len(onset)+len(offset)) and gamma > 0.001:
+        pda = discrimination(A,onset,offset,True,gamma)
+        nda = discrimination(A,onset,offset,False,gamma)
+        add_idx(idxs, pda)
+        add_idx(idxs, nda)
+        pos = cost(pda[0]) <= cost(nda[0])
+        idx,val,d = pda[0] if pos else nda[0]
+        if d[0] < len(onset):
+            pred = (idx,val,pos)
+            A = remove(A,pred)
+            onset = remove(onset,pred)
+            offset = remove(offset,pred)
+            gamma = gamma * mu
+        else:
+#            print ("*** no improvement ***")
+            gamma = orig_gamma * gamma
+    return idxs
+
 #
 # Same as the above, but computes the result over a random subset of
 # the features of size `samp_size`. Default sample size is `sqrt(len(x))`.
@@ -219,23 +248,51 @@ def indice_cone(data, cone):
 
 def slice_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
     if cone is not None:
-        #ndoffset = ndoffset[(slice(None),)+cone]
-        #ndonset = ndonset[(slice(None),)+cone]
-        #ndA = ndA[(slice(None),)+cone]
         ndoffset = indice_cone(ndoffset, cone)
         ndonset = indice_cone(ndonset, cone)
         ndA = indice_cone(ndA, cone)
-        #print(ndA.shape)
-        #print(ndonset.shape)
-        #print(ndoffset.shape)
     res = ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu)
     if cone is not None:
         #res = unslice_itp(cone,res)
-        #for idx,val,pos in res:
-            #print(idx)
-            #break
         res = {(list(cone)[idx[0]], val, pos) for idx,val,pos in res}
     return res
+
+
+
+def sample_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
+    if cone is not None:
+        offset = indice_cone(ndoffset, cone)
+        onset = indice_cone(ndonset, cone)
+        A = indice_cone(ndA, cone)
+    shape = A.shape[1:]
+    if len(shape) > 1:
+        A = A.reshape(len(A),-1)
+        onset = onset.reshape(len(onset),-1)
+        offset = offset.reshape(len(offset),-1)
+    res = set()
+    for idx in range(_ensemble_size):
+        if _use_random_subspace:
+            N = A.shape[1]
+            samp_size = (_random_subspace_size(N) if _random_subspace_size is not None
+                         else int(math.sqrt(N)))
+            subset = np.array(random.sample(list(range(N)),samp_size))
+            sA = A[:,subset]
+            sonset = onset[:,subset]
+            soffset = offset[:,subset]
+            cur_res = sample_separator(sA,sonset,soffset,epsilon,gamma,mu)
+        else:
+            cur_res = sample_separator(A,onset,offset,epsilon,gamma,mu)
+        res.update(cur_res)
+    if len(shape) > 1:
+        res = set([unflatten_unit(shape,idx) for idx in res])
+
+    if cone is not None:
+        res = {list(cone)[idx] for idx in res}
+    return res
+
+
+
+
 
 # Internal implementation of `interpolant()`, see below. If we are given weights,
 # we keep all of the positive samples with non-zero weights. TODO: we should pass the weights
@@ -269,6 +326,19 @@ def interpolant_int(train_eval,test_eval,l1,A,l2,pred,
 #        show_positives(train_eval,l1,itp_pred(res),l2,pred,10,res)
 
     return res, train_error, test_error, train_e, test_e
+
+def interpolant_sample(sample_eval,l1,A,l2,pred,
+                    epsilon,gamma,mu,cone=None,samps=None,weights=None):
+    sample_eval.set_pred(l2,pred)
+    psamps2,nsamps2 = sample_eval.split(l1) if samps is None else samps
+    _weights = weights
+    if _weights is not None:
+        _weights =  np.compress(sample_eval.cond,_weights,axis=0)
+        assert len(_weights) == len(psamps2)
+        psamps2 = np.compress(_weights,psamps2,axis=0)
+    res = sample_ndseparator(A,nsamps2,psamps2,epsilon,gamma,mu,cone)
+
+    return res
 
 _ttime = 0.0
 
@@ -313,6 +383,7 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
                 ) -> Tuple[LayerPredicate,Stats]:
     global _ttime,_ensemble_size,_use_random_subspace,_random_subspace_size
     train_eval,test_eval = data_model._train_eval,data_model._test_eval
+    sample_eval = data_model._sample_eval
     epsilon = 1.0 - alpha
     _ttime = 0.0
     _ensemble_size = ensemble_size
@@ -320,9 +391,14 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     _random_subspace_size = random_subspace_size or (lambda N: N//ensemble_size)
     l2,pred = lpred.layer,lpred.pred
     A = train_eval.eval_all(l1,inps)
+    B = sample_eval.eval_all(l1,inps)
     cone = get_pred_cone(train_eval.model,lpred,l1)
-    res,train_error,test_error, train_e, test_e = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
+    idxs = interpolant_sample(sample_eval,l1,B,l2,pred,
                                                  epsilon,gamma,mu,cone=cone,weights=weights)
+    print(len(cone))
+    print(len(idxs))
+    res,train_error,test_error, train_e, test_e = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
+                                                 epsilon,gamma,mu,cone=idxs,weights=weights)
 
 
 

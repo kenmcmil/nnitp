@@ -74,8 +74,10 @@ class DataModel(object):
     def set_sample_size(self,size:int, category:int = None):
         train_data = sample_dataset(self.train_data, size, category = category)
         test_data = sample_dataset(self.test_data, size, category = category)
+        sample_data = sample_dataset(self.train_data, size//10, category = category)
         self._train_eval = ModelEval(self.model,train_data, self.name)
         self._test_eval = ModelEval(self.model,test_data, self.name)
+        self._sample_eval = ModelEval(self.model,sample_data, self.name)
 
     def output_layer(self) -> int:
         return len(self.model.layers) - 1
