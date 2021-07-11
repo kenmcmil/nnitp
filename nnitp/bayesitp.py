@@ -45,7 +45,7 @@ class Stats(object):
                 'Compute time: {}\n'.format(self.time))
 
 #
-# Evaluate a predicate on a vector. 
+# Evaluate a predicate on a vector.
 #
 # TODO: replace this with Predicate.map
 
@@ -84,7 +84,7 @@ def fractile_all(gamma,pos,offset):
 # the predicate is false. The return value is a list
 # of pairs `(idx,d)` where `d` is the discrimination, sorted by
 # descending `d`. Notice that because of the standard sorting order on pairs,
-# the `t` score is more important than the `f` score. 
+# the `t` score is more important than the `f` score.
 # The parameter `gamma` is the minimum fraction of points in the
 # offset that must be correctly classified.
 
@@ -177,6 +177,23 @@ def sample_separator(A,onset,offset,epsilon,gamma,mu):
             gamma = orig_gamma * gamma
     return idxs
 
+
+
+
+def sample_relu(A,onset,offset,epsilon,gamma,mu):
+    allset = np.concatenate(onset, offset)
+    count = np.count_nonzero(allset)
+    count = zip(range(len(count)), count)
+    res = sorted(res,key=lambda x:x[1], reverse = True)
+    idxs = set(res[0, :len(allset//20)])
+
+    return idxs
+
+
+
+
+
+
 #
 # Same as the above, but computes the result over a random subset of
 # the features of size `samp_size`. Default sample size is `sqrt(len(x))`.
@@ -213,7 +230,7 @@ def ensembleseparator(A,onset,offset,epsilon,gamma,mu):
 #
 # Same as above, but allows the values to be N-dimentional. Unlike the above
 # functions, the coordinates in the result are tuples, even if the input is
-# one-dimensional. 
+# one-dimensional.
 #
 
 def ndseparator(A,onset,offset,epsilon,gamma,mu) -> List[Tuple[Tuple,float,bool]]:
@@ -259,11 +276,11 @@ def slice_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
 
 
 
-def sample_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
+def sample_ndseparator(A,onset,offset,epsilon,gamma,mu,cone=None):
     if cone is not None:
-        offset = indice_cone(ndoffset, cone)
-        onset = indice_cone(ndonset, cone)
-        A = indice_cone(ndA, cone)
+        offset = indice_cone(offset, cone)
+        onset = indice_cone(onset, cone)
+        A = indice_cone(A, cone)
     shape = A.shape[1:]
     if len(shape) > 1:
         A = A.reshape(len(A),-1)
@@ -296,7 +313,7 @@ def sample_ndseparator(ndA,ndonset,ndoffset,epsilon,gamma,mu,cone=None):
 
 # Internal implementation of `interpolant()`, see below. If we are given weights,
 # we keep all of the positive samples with non-zero weights. TODO: we should pass the weights
-# down and use them to compute the fractiles and precisions. 
+# down and use them to compute the fractiles and precisions.
 
 def interpolant_int(train_eval,test_eval,l1,A,l2,pred,
                     epsilon,gamma,mu,cone=None,samps=None,weights=None):
@@ -367,7 +384,7 @@ _ttime = 0.0
 # Notes:
 #
 # - If `ensemble_size > 1`, the interpolant is computed as an ensemble
-#   (a conjunction) of independent interpolants. 
+#   (a conjunction) of independent interpolants.
 # - If `random_subspace_size` is not `None`, then each interpolant
 #   in the ensemble is computed using a random sample without
 #   replacement of the features of size `random_subspace_size(N)`

@@ -27,7 +27,7 @@ from nnitp.bayesitp import Stats, interpolant, get_pred_cone, fraction, fractile
 
 # This thread is for loading the model.
 
-
+matplotlib.use("agg")
 
 def main(param,summary):
     name = param["name"]
@@ -285,6 +285,7 @@ if __name__ == '__main__':
                 param["category"] = cat
                 for j in range(args.num_images):
                     param["input_idx"]=j
+                    print("main")
                     main(param, summary)
 
             logs["gamma"].append(gamma)
