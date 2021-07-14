@@ -29,7 +29,7 @@ from nnitp.bayesitp import Stats, interpolant, get_pred_cone, fraction, fractile
 
 matplotlib.use("agg")
 
-def main(param,summary):
+def main(param,summary, data_model):
     name = param["name"]
     size = param["size"]
     category = param["category"]
@@ -43,10 +43,6 @@ def main(param,summary):
     kwargs["mu"] = param["mu"]
     kwargs["gamma"] = param["gamma"]
 
-    s1 = time.time()
-    data_model = DataModel()
-    data_model.load(name)
-    data_model.set_sample_size(size, category = category)
     train_eval = data_model._train_eval
     test_eval = data_model._test_eval
     layer_idxs = [param["layer"]]
@@ -55,14 +51,13 @@ def main(param,summary):
     last = len(avails)-2
     train_eval.set_idxs(layer_idxs + [-1, last])
     test_eval.set_idxs(layer_idxs + [last])
-    print(avails)
+    #print(avails)
     layers = [avails[i+1] for i in layer_idxs if i+1>=0 and i+1 <len(avails)]
     s2 = time.time()
     conc = output_category_predicate(data_model, category)
     s3 = time.time()
     compset = conc.sat(train_eval)
     inp = compset[input_idx]
-    s4 = time.time()
 
 
     def previous_layer(layers, cur):
@@ -270,6 +265,8 @@ if __name__ == '__main__':
     param["name"] = args.experiment
     param["layer"]= args.layer
     param["size"]= args.sample_size
+    data_model = DataModel()
+    data_model.load(param["name"])
     for mu in mu_range:
         param["mu"]= mu
         logs = {"gamma":[],"train_prec":[],"test_prec":[],"train_recall":[], "test_recall":[], "complexity":[]}
@@ -283,10 +280,12 @@ if __name__ == '__main__':
                 cats = [args.category]
             for cat in cats:
                 param["category"] = cat
+                size = param["size"]
+
+                data_model.set_sample_size(size, category = cat)
                 for j in range(args.num_images):
                     param["input_idx"]=j
-                    print("main")
-                    main(param, summary)
+                    main(param, summary, data_model)
 
             logs["gamma"].append(gamma)
             logs["train_prec"].append(mean(summary["train_prec"]))

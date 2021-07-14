@@ -48,6 +48,8 @@ def compute_activation(model,lidxs, test, use_loader = False, name =None):
         ret = dict()
         if name.startswith("imagenet"):
             data_loader = torch.utils.data.DataLoader(test, batch_size = 200, num_workers = 16, pin_memory = True)
+        elif name.startswith("mnist"):
+            data_loader = torch.utils.data.DataLoader(test, batch_size = 20000, num_workers = 16, pin_memory = True)
         else:
             data_loader = torch.utils.data.DataLoader(test, batch_size = 5000, num_workers = 16, pin_memory = True)
         for i, (inp, target) in enumerate(data_loader):
@@ -338,6 +340,66 @@ class Wrapper(object):
         ret.update(self.mid_out)
         self.mid_out = dict()
         return ret
+
+    #def get_weight(self):
+    #    self.inp_weight = dict()
+    #    self.out_weight = dict()
+    #    for i in range(self.n):
+    #        layer = self.get_layer(i)
+    #        out_shape = self.layer_shape(i)
+    #        if i == 0:
+    #            prev = [-1]
+    #            inp_shape = self.layer_shape(-1)
+    #        else:
+    #            prev = []
+    #            for j in range(i):
+    #                if self.E[j][i]:
+    #                    prev.append(j)
+    #            inp_shape = self.layer_shape(prev[-1])
+    #        if isinstance(layer, nn.Conv2d):
+    #            x = torch.randn([1]+inp_shape).to(self.device)
+    #            with torch.no_grad():
+    #                w = layer(x)
+    #            self.inp_weight[i] = w
+    #            for k in self.prev:
+    #                self.out_weight[k] = 
+
+
+
+
+
+
+
+    #def compute_importance(self, data, name):
+    #    if name.startswith("imagenet"):
+    #        data_loader = torch.utils.data.DataLoader(data, batch_size = 200, num_workers = 16, pin_memory = True)
+    #    elif name.startswith("mnist"):
+    #        data_loader = torch.utils.data.DataLoader(data, batch_size = 20000, num_workers = 16, pin_memory = True)
+    #    else:
+    #        data_loader = torch.utils.data.DataLoader(data, batch_size = 5000, num_workers = 16, pin_memory = True)
+    #    import PyIFS
+    #    inf = PyIFS.InfFS()
+    #    x = []
+    #    for i, (inp,out) in enumerate(data_loader):
+    #        x.append(self.model(inp.to(self.device)).detach().cpu())
+    #    x = torch.cat(x).numpy()
+    #    y = data.targets
+    #    [ranked,weight] = inf.infFS(x, y, 0.5, 0, 0)
+    #    weight = torch.tensor(weight).float().to(self.device)
+    #    self.importance = [weight]
+    #    cur = weight
+    #    for layer in reversed(self._layers):
+    #        if hasattr(layer, "weight"):
+    #            print(cur.shape)
+    #            print(layer.weight.data.shape)
+    #            cur = torch.matmul(layer.weight.data.T, cur)
+    #        self.importance = [cur] + self.importance
+    #    self.importance = self.importance[1:]
+
+
+
+
+
 
     #def compute_activation(self,lidx,test):
     #    self.model.eval()

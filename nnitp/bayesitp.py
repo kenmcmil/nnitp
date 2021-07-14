@@ -181,16 +181,33 @@ def sample_separator(A,onset,offset,epsilon,gamma,mu):
 
 
 def sample_relu(A,onset,offset,epsilon,gamma,mu):
-    allset = np.concatenate(onset, offset)
+    allset = np.concatenate((onset, offset))
     count = np.count_nonzero(allset)
     count = zip(range(len(count)), count)
-    res = sorted(res,key=lambda x:x[1], reverse = True)
-    idxs = set(res[0, :len(allset//20)])
+    res = sorted(count,key=lambda x:x[1], reverse = True)
+    idxs = set(res[0, :len(allset//5)])
 
     return idxs
 
 
 
+
+def sample_mag(A,onset,offset,epsilon,gamma,mu):
+    allset = np.concatenate((onset, offset))
+    sum_mag = allset.sum(0)
+    sum_mag = zip(range(len(sum_mag)), sum_mag)
+    res = sorted(sum_mag,key=lambda x:x[1], reverse = True)
+    idxs = set([x[0] for x in res[:allset.shape[1]//5]])
+    return idxs
+
+
+def sample_kmeans(A,onset,offset,epsilon,gamma,mu):
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import pairwise_distances_argmin_min
+    X = np.concatenate((onset, offset)).T
+    km = KMeans(n_cluster = X.shape[0]//5).fit(X)
+    closest, _ = pairwise_distances_argmin_min(km.cluster_centers_, X)
+    return set(closest)
 
 
 
@@ -296,9 +313,9 @@ def sample_ndseparator(A,onset,offset,epsilon,gamma,mu,cone=None):
             sA = A[:,subset]
             sonset = onset[:,subset]
             soffset = offset[:,subset]
-            cur_res = sample_separator(sA,sonset,soffset,epsilon,gamma,mu)
+            cur_res = sample_mag(sA,sonset,soffset,epsilon,gamma,mu)
         else:
-            cur_res = sample_separator(A,onset,offset,epsilon,gamma,mu)
+            cur_res = sample_mag(A,onset,offset,epsilon,gamma,mu)
         res.update(cur_res)
     if len(shape) > 1:
         res = set([unflatten_unit(shape,idx) for idx in res])
@@ -410,9 +427,9 @@ def interpolant(data_model:DataModel,l1:int,inps:np.ndarray,
     A = train_eval.eval_all(l1,inps)
     B = sample_eval.eval_all(l1,inps)
     cone = get_pred_cone(train_eval.model,lpred,l1)
+    print(len(cone))
     idxs = interpolant_sample(sample_eval,l1,B,l2,pred,
                                                  epsilon,gamma,mu,cone=cone,weights=weights)
-    print(len(cone))
     print(len(idxs))
     res,train_error,test_error, train_e, test_e = interpolant_int(train_eval,test_eval,l1,A,l2,pred,
                                                  epsilon,gamma,mu,cone=idxs,weights=weights)
